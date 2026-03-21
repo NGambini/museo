@@ -1,0 +1,73 @@
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { AuthService } from './auth.service';
+import { SignupDto } from './dto/signup.dto';
+import { LoginDto } from './dto/login.dto';
+import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
+import { JwtAuthGuard } from './guards/jwt.guard';
+
+@ApiTags('Auth')
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+
+  @Post('signup')
+  @ApiOperation({ summary: 'Register a new user' })
+  @ApiResponse({
+    status: 201,
+    description: 'Returns access_token and refresh_token',
+  })
+  @ApiResponse({ status: 409, description: 'Email already in use' })
+  signup(@Body() dto: SignupDto) {
+    return this.authService.signup(dto.email, dto.password);
+  }
+
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login with email and password' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns access_token and refresh_token',
+  })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  login(@Body() dto: LoginDto) {
+    return this.authService.login(dto.email, dto.password);
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtRefreshGuard)
+  @ApiBearerAuth('refresh-token')
+  @ApiOperation({ summary: 'Rotate refresh token and get new access token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns new access_token and refresh_token',
+  })
+  @ApiResponse({ status: 403, description: 'Invalid or expired refresh token' })
+  refresh(@Request() req: any) {
+    return this.authService.refresh(req.user.id, req.user.refreshToken);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Invalidate refresh token' })
+  @ApiResponse({ status: 200, description: 'Logged out successfully' })
+  logout(@Request() req: any) {
+    return this.authService.logout(req.user.id);
+  }
+}
