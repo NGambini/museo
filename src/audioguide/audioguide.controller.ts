@@ -6,7 +6,6 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  Patch,
   Post,
   Request,
   UseGuards,
@@ -19,13 +18,16 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Request as ExpressRequest } from 'express';
 import { AudioguideService } from './audioguide.service';
-import { CreateAudioguideDto } from './dto/create-audioguide.dto';
-import { UpdateAudioguideDto } from './dto/update-audioguide.dto';
 import { GenerateAudioguideDto } from './dto/generate-audioguide.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { Audioguide } from './audioguide.entity';
 import { TimeoutInterceptor } from '../common/interceptors/timeout.interceptor';
+
+interface AuthRequest extends ExpressRequest {
+  user: { id: string };
+}
 
 @ApiTags('Audioguides')
 @ApiBearerAuth('access-token')
@@ -41,7 +43,7 @@ export class AudioguideController {
   @ApiResponse({ status: 500, description: 'Generation failed' })
   generate(
     @Body() dto: GenerateAudioguideDto,
-    @Request() req: any,
+    @Request() req: AuthRequest,
   ): Promise<Audioguide> {
     return this.audioguideService.generate(
       dto.place_id,
@@ -53,7 +55,7 @@ export class AudioguideController {
   @Get()
   @ApiOperation({ summary: 'Get all audioguides for the authenticated user' })
   @ApiResponse({ status: 200, type: [Audioguide] })
-  findAll(@Request() req: any): Promise<Audioguide[]> {
+  findAll(@Request() req: AuthRequest): Promise<Audioguide[]> {
     return this.audioguideService.findAll(req.user.id);
   }
 
@@ -62,30 +64,11 @@ export class AudioguideController {
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, type: Audioguide })
   @ApiResponse({ status: 404, description: 'Not found' })
-  findOne(@Param('id') id: string, @Request() req: any): Promise<Audioguide> {
-    return this.audioguideService.findOne(id, req.user.id);
-  }
-
-  @Post()
-  @ApiOperation({ summary: 'Create a new audioguide' })
-  @ApiResponse({ status: 201, type: Audioguide })
-  create(
-    @Body() dto: CreateAudioguideDto,
-    @Request() req: any,
-  ): Promise<Audioguide> {
-    return this.audioguideService.create(dto, req.user.id);
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update an audioguide' })
-  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
-  @ApiResponse({ status: 200, type: Audioguide })
-  update(
+  findOne(
     @Param('id') id: string,
-    @Body() dto: UpdateAudioguideDto,
-    @Request() req: any,
+    @Request() req: AuthRequest,
   ): Promise<Audioguide> {
-    return this.audioguideService.update(id, dto, req.user.id);
+    return this.audioguideService.findOne(id, req.user.id);
   }
 
   @Delete(':id')
@@ -93,7 +76,7 @@ export class AudioguideController {
   @ApiOperation({ summary: 'Delete an audioguide' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 204, description: 'Deleted successfully' })
-  remove(@Param('id') id: string, @Request() req: any): Promise<void> {
+  remove(@Param('id') id: string, @Request() req: AuthRequest): Promise<void> {
     return this.audioguideService.remove(id, req.user.id);
   }
 }

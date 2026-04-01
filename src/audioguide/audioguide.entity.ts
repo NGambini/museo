@@ -38,11 +38,4 @@ export class Audioguide extends BaseEntity {
   @ApiProperty({ example: { title: 'Tour Eiffel', chapters: [] } })
   @Column({ type: 'jsonb', default: {} })
   attributes: Record<string, unknown>;
-
-  @ApiProperty({
-    example: 'https://storage.googleapis.com/bucket/place/fr/audio.mp3',
-    nullable: true,
-  })
-  @Column({ nullable: true })
-  audioUrl: string | null;
 }

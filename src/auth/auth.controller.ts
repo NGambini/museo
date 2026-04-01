@@ -13,11 +13,20 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Request as ExpressRequest } from 'express';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { JwtAuthGuard } from './guards/jwt.guard';
+
+interface AuthRequest extends ExpressRequest {
+  user: { id: string };
+}
+
+interface RefreshRequest extends ExpressRequest {
+  user: { id: string; refreshToken: string };
+}
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -57,7 +66,7 @@ export class AuthController {
     description: 'Returns new access_token and refresh_token',
   })
   @ApiResponse({ status: 403, description: 'Invalid or expired refresh token' })
-  refresh(@Request() req: any) {
+  refresh(@Request() req: RefreshRequest) {
     return this.authService.refresh(req.user.id, req.user.refreshToken);
   }
 
@@ -67,7 +76,7 @@ export class AuthController {
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Invalidate refresh token' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  logout(@Request() req: any) {
+  logout(@Request() req: AuthRequest) {
     return this.authService.logout(req.user.id);
   }
 }
