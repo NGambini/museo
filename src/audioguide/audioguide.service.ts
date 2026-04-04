@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Storage, Bucket } from '@google-cloud/storage';
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';
-import { VertexAI } from '@google-cloud/vertexai';
+import { GoogleGenAI } from '@google/genai';
 import { Audioguide } from './audioguide.entity';
 import { GeminiChapter, GeminiResult, PlaceDetails } from './audioguide.types';
 import { buildAudioguidePrompt } from './audioguide.prompts';
@@ -22,7 +22,8 @@ export class AudioguideService {
     @InjectRepository(Audioguide)
     private readonly audioguideRepository: Repository<Audioguide>,
   ) {
-    this.storage = new Storage();
+    this.storage = new Storage({ projectId: process.env.GOOGLE_PROJECT_ID });
+
     this.ttsClient = new TextToSpeechClient();
   }
 
@@ -143,7 +144,7 @@ export class AudioguideService {
       };
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
-      console.error(`Error at Google Places step: ${msg}`);
+      console.error(`Error at Google Places step: ${msg}`, error);
       throw new InternalServerErrorException(
         'An error occurred, please try again later',
       );
@@ -165,7 +166,7 @@ export class AudioguideService {
     const buffer = Buffer.from(await photoRes.arrayBuffer());
     await bucket
       .file(`${placeId}/${lang}/pictures/main.jpg`)
-      .save(buffer, { contentType: 'image/jpeg', public: true });
+      .save(buffer, { contentType: 'image/jpeg' });
 
     const url = `https://storage.googleapis.com/${bucketName}/${placeId}/${lang}/pictures/main.jpg`;
     console.log('Main photo uploaded to GCS');
@@ -177,26 +178,20 @@ export class AudioguideService {
     lang: string,
   ): Promise<GeminiResult> {
     try {
-      const vertexAI = new VertexAI({
-        project: process.env.GOOGLE_PROJECT_ID!,
-        location: 'us-central1',
-      });
-      const model = vertexAI.getGenerativeModel({
-        model: 'gemini-2.0-flash-001',
-      });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
-      const result = await model.generateContent({
+      const result = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-lite',
         contents: [
           {
             role: 'user',
             parts: [{ text: buildAudioguidePrompt(placeName, lang) }],
           },
         ],
-        generationConfig: { responseMimeType: 'application/json' },
+        config: { responseMimeType: 'application/json' },
       });
 
-      const responseText =
-        result.response.candidates![0].content.parts[0].text!;
+      const responseText = result.text!;
       const geminiResult = JSON.parse(responseText) as GeminiResult;
 
       if (
@@ -211,6 +206,7 @@ export class AudioguideService {
 
       console.log(
         `Gemini OK: ${geminiResult.chapters.length} chapters generated`,
+        JSON.stringify(geminiResult, null, 2),
       );
       return geminiResult;
     } catch (error: unknown) {
@@ -283,7 +279,7 @@ export class AudioguideService {
         .file(
           `${placeId}/${lang}/pictures/chapter_${chapter.chapter_number}.jpg`,
         )
-        .save(imgBuffer, { contentType: 'image/jpeg', public: true });
+        .save(imgBuffer, { contentType: 'image/jpeg' });
 
       chapter.image_url = `https://storage.googleapis.com/${bucketName}/${placeId}/${lang}/pictures/chapter_${chapter.chapter_number}.jpg`;
       console.log(`Chapter ${chapter.chapter_number} image uploaded`);
@@ -330,7 +326,7 @@ export class AudioguideService {
   ): Promise<void> {
     const [ttsResponse] = await this.ttsClient.synthesizeSpeech({
       input: { text: chapter.text },
-      voice: { languageCode: 'fr-FR', name: 'fr-FR-Neural2-A' },
+      voice: { languageCode: 'fr-FR', name: 'fr-FR-Chirp-HD-F' },
       audioConfig: {
         audioEncoding: 'MP3' as unknown as number,
         pitch: 3.0,
@@ -341,7 +337,7 @@ export class AudioguideService {
     const audioBuffer = Buffer.from(ttsResponse.audioContent as Uint8Array);
     await bucket
       .file(`${placeId}/${lang}/tracks/chapter_${chapter.chapter_number}.mp3`)
-      .save(audioBuffer, { contentType: 'audio/mpeg', public: true });
+      .save(audioBuffer, { contentType: 'audio/mpeg' });
 
     chapter.audio_url = `https://storage.googleapis.com/${bucketName}/${placeId}/${lang}/tracks/chapter_${chapter.chapter_number}.mp3`;
     console.log(`Chapter ${chapter.chapter_number} audio uploaded to GCS`);
