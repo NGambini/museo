@@ -28,7 +28,10 @@ export class AudioguideService {
   }
 
   async findAll(userId: string): Promise<Audioguide[]> {
-    return this.audioguideRepository.find({ where: { userId } });
+    const audioguides = await this.audioguideRepository.find({
+      where: { userId },
+    });
+    return Promise.all(audioguides.map((a) => this.withSignedUrls(a)));
   }
 
   async findOne(id: string, userId: string): Promise<Audioguide> {
@@ -37,11 +40,16 @@ export class AudioguideService {
     });
     if (!audioguide) throw new NotFoundException('Audioguide not found');
     if (audioguide.userId !== userId) throw new ForbiddenException();
-    return audioguide;
+    return this.withSignedUrls(audioguide);
   }
 
   async remove(id: string, userId: string): Promise<void> {
-    const audioguide = await this.findOne(id, userId);
+    // Fetch raw entity (no signed URLs needed for deletion)
+    const audioguide = await this.audioguideRepository.findOne({
+      where: { id },
+    });
+    if (!audioguide) throw new NotFoundException('Audioguide not found');
+    if (audioguide.userId !== userId) throw new ForbiddenException();
     await this.audioguideRepository.remove(audioguide);
   }
 
@@ -55,7 +63,7 @@ export class AudioguideService {
     });
     if (existing) {
       console.log(`Cache hit for place_id ${placeId}`);
-      return existing;
+      return this.withSignedUrls(existing);
     }
 
     console.log(`Generating audioguide for place_id ${placeId}`);
@@ -67,7 +75,6 @@ export class AudioguideService {
       placeId,
       lang,
       bucket,
-      bucketName,
     );
 
     const geminiResult = await this.generateAudioguideWithGemini(
@@ -80,7 +87,6 @@ export class AudioguideService {
       placeId,
       lang,
       bucket,
-      bucketName,
     );
 
     await this.synthesizeAndUploadAudio(
@@ -88,23 +94,64 @@ export class AudioguideService {
       placeId,
       lang,
       bucket,
-      bucketName,
     );
 
-    return this.persistAudioguideToDatabase(
+    const saved = await this.persistAudioguideToDatabase(
       placeId,
       lang,
       userId,
       placeDetails,
       geminiResult,
     );
+
+    return this.withSignedUrls(saved);
+  }
+
+  /**
+   * Generates a signed URL for a GCS object path, valid for 1 hour.
+   */
+  private async signedUrl(path: string): Promise<string> {
+    const bucket = this.storage.bucket(process.env.GCS_BUCKET_NAME!);
+    const [url] = await bucket.file(path).getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 60 * 60 * 1000, // 1 hour
+    });
+    return url;
+  }
+
+  /**
+   * Returns a copy of the audioguide entity with all stored GCS paths
+   * in `attributes` replaced by signed URLs (valid 1 hour).
+   */
+  private async withSignedUrls(audioguide: Audioguide): Promise<Audioguide> {
+    const attrs = { ...audioguide.attributes } as Record<string, unknown>;
+
+    if (typeof attrs.main_image_url === 'string') {
+      attrs.main_image_url = await this.signedUrl(attrs.main_image_url);
+    }
+
+    if (Array.isArray(attrs.chapters)) {
+      attrs.chapters = await Promise.all(
+        (attrs.chapters as GeminiChapter[]).map(async (chapter) => {
+          const updated = { ...chapter };
+          if (typeof updated.image_url === 'string') {
+            updated.image_url = await this.signedUrl(updated.image_url);
+          }
+          if (typeof updated.audio_url === 'string') {
+            updated.audio_url = await this.signedUrl(updated.audio_url);
+          }
+          return updated;
+        }),
+      );
+    }
+
+    return { ...audioguide, attributes: attrs };
   }
 
   private async fetchPlaceDetailsFromGooglePlaces(
     placeId: string,
     lang: string,
     bucket: Bucket,
-    bucketName: string,
   ): Promise<PlaceDetails> {
     try {
       const res = await fetch(
@@ -127,12 +174,12 @@ export class AudioguideService {
       const placeName = data.result.name;
       console.log(`Google Places OK: ${placeName}`);
 
-      const mainImageUrl = await this.uploadMainPhoto(
+      // Returns the GCS path (not a full URL) for the main photo
+      const mainImagePath = await this.uploadMainPhoto(
         data.result.photos?.[0]?.photo_reference,
         placeId,
         lang,
         bucket,
-        bucketName,
       );
 
       return {
@@ -140,7 +187,7 @@ export class AudioguideService {
         latitude: data.result.geometry.location.lat,
         longitude: data.result.geometry.location.lng,
         rating: data.result.rating ?? null,
-        mainImageUrl,
+        mainImagePath,
       };
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -151,26 +198,26 @@ export class AudioguideService {
     }
   }
 
+  /**
+   * Uploads the main place photo to GCS and returns its storage path.
+   */
   private async uploadMainPhoto(
     photoRef: string | undefined,
     placeId: string,
     lang: string,
     bucket: Bucket,
-    bucketName: string,
   ): Promise<string | undefined> {
     if (!photoRef) return undefined;
 
+    const path = `${placeId}/${lang}/pictures/main.jpg`;
     const photoRes = await fetch(
       `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoRef}&key=${process.env.GOOGLE_PLACES_API_KEY}`,
     );
     const buffer = Buffer.from(await photoRes.arrayBuffer());
-    await bucket
-      .file(`${placeId}/${lang}/pictures/main.jpg`)
-      .save(buffer, { contentType: 'image/jpeg' });
+    await bucket.file(path).save(buffer, { contentType: 'image/jpeg' });
 
-    const url = `https://storage.googleapis.com/${bucketName}/${placeId}/${lang}/pictures/main.jpg`;
     console.log('Main photo uploaded to GCS');
-    return url;
+    return path;
   }
 
   private async generateAudioguideWithGemini(
@@ -223,18 +270,11 @@ export class AudioguideService {
     placeId: string,
     lang: string,
     bucket: Bucket,
-    bucketName: string,
   ): Promise<void> {
     try {
       await Promise.all(
         chapters.map((chapter) =>
-          this.fetchAndUploadOneChapterImage(
-            chapter,
-            placeId,
-            lang,
-            bucket,
-            bucketName,
-          ),
+          this.fetchAndUploadOneChapterImage(chapter, placeId, lang, bucket),
         ),
       );
     } catch (error: unknown) {
@@ -246,12 +286,15 @@ export class AudioguideService {
     }
   }
 
+  /**
+   * Fetches a chapter image from Wikimedia, uploads it to GCS,
+   * and stores the GCS path (not a full URL) on the chapter object.
+   */
   private async fetchAndUploadOneChapterImage(
     chapter: GeminiChapter,
     placeId: string,
     lang: string,
     bucket: Bucket,
-    bucketName: string,
   ): Promise<void> {
     try {
       const wikiRes = await fetch(
@@ -272,16 +315,14 @@ export class AudioguideService {
         return;
       }
 
+      const path = `${placeId}/${lang}/pictures/chapter_${chapter.chapter_number}.jpg`;
       const imgBuffer = Buffer.from(
         await (await fetch(thumbUrl)).arrayBuffer(),
       );
-      await bucket
-        .file(
-          `${placeId}/${lang}/pictures/chapter_${chapter.chapter_number}.jpg`,
-        )
-        .save(imgBuffer, { contentType: 'image/jpeg' });
+      await bucket.file(path).save(imgBuffer, { contentType: 'image/jpeg' });
 
-      chapter.image_url = `https://storage.googleapis.com/${bucketName}/${placeId}/${lang}/pictures/chapter_${chapter.chapter_number}.jpg`;
+      // Store the GCS path — signed URL is generated at read time
+      chapter.image_url = path;
       console.log(`Chapter ${chapter.chapter_number} image uploaded`);
     } catch {
       console.log(`No image found for chapter ${chapter.chapter_number}`);
@@ -293,7 +334,6 @@ export class AudioguideService {
     placeId: string,
     lang: string,
     bucket: Bucket,
-    bucketName: string,
   ): Promise<void> {
     try {
       await Promise.all(
@@ -303,7 +343,6 @@ export class AudioguideService {
             placeId,
             lang,
             bucket,
-            bucketName,
           ),
         ),
       );
@@ -317,29 +356,32 @@ export class AudioguideService {
     }
   }
 
+  /**
+   * Synthesizes speech for a chapter, uploads the MP3 to GCS,
+   * and stores the GCS path (not a full URL) on the chapter object.
+   */
   private async synthesizeAndUploadOneChapterAudio(
     chapter: GeminiChapter,
     placeId: string,
     lang: string,
     bucket: Bucket,
-    bucketName: string,
   ): Promise<void> {
     const [ttsResponse] = await this.ttsClient.synthesizeSpeech({
       input: { text: chapter.text },
       voice: { languageCode: 'fr-FR', name: 'fr-FR-Chirp-HD-F' },
       audioConfig: {
         audioEncoding: 'MP3' as unknown as number,
-        pitch: 3.0,
-        speakingRate: 0.9,
+        // pitch: 3.0,
+        // speakingRate: 0.9,
       },
     });
 
+    const path = `${placeId}/${lang}/tracks/chapter_${chapter.chapter_number}.mp3`;
     const audioBuffer = Buffer.from(ttsResponse.audioContent as Uint8Array);
-    await bucket
-      .file(`${placeId}/${lang}/tracks/chapter_${chapter.chapter_number}.mp3`)
-      .save(audioBuffer, { contentType: 'audio/mpeg' });
+    await bucket.file(path).save(audioBuffer, { contentType: 'audio/mpeg' });
 
-    chapter.audio_url = `https://storage.googleapis.com/${bucketName}/${placeId}/${lang}/tracks/chapter_${chapter.chapter_number}.mp3`;
+    // Store the GCS path — signed URL is generated at read time
+    chapter.audio_url = path;
     console.log(`Chapter ${chapter.chapter_number} audio uploaded to GCS`);
   }
 
@@ -359,7 +401,7 @@ export class AudioguideService {
         lang,
         userId,
         attributes: {
-          main_image_url: placeDetails.mainImageUrl ?? null,
+          main_image_url: placeDetails.mainImagePath ?? null,
           rating: placeDetails.rating,
           admission_price: geminiResult.admission_price,
           title: geminiResult.title,

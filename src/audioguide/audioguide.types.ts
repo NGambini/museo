@@ -20,5 +20,5 @@ export interface PlaceDetails {
   latitude: number;
   longitude: number;
   rating: number | null;
-  mainImageUrl: string | undefined;
+  mainImagePath: string | undefined;
 }
