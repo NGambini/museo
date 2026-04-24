@@ -1,12 +1,13 @@
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
+import { AppThemeProvider } from '@/providers/AppThemeProvider';
 import '@/global.css';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { useColorScheme } from '@/components/useColorScheme';
 import { Slot } from 'expo-router';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { queryClient, asyncStoragePersister } from '@/lib/queryClient';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -28,16 +29,16 @@ export default function RootLayout() {
 
   if (!loaded) return null;
 
-  return <RootLayoutNav />;
-}
-
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
   return (
-    <GluestackUIProvider mode="light">
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Slot />
-      </ThemeProvider>
-    </GluestackUIProvider>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister: asyncStoragePersister }}
+    >
+      <GluestackUIProvider mode="light">
+        <AppThemeProvider>
+          <Slot />
+        </AppThemeProvider>
+      </GluestackUIProvider>
+    </PersistQueryClientProvider>
   );
 }

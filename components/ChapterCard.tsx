@@ -1,7 +1,11 @@
 import { AVPlaybackSource } from 'expo-av';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet } from 'react-native';
 import { Maximize2 } from 'lucide-react-native';
 import { Icon } from './ui/icon';
+import { Box } from './ui/box';
+import { Text } from './ui/text';
+import { Heading } from './ui/heading';
+import { VStack } from './ui/vstack';
 import { AudioPlayer } from './AudioPlayer';
 
 export type ChapterCardProps = {
@@ -14,9 +18,9 @@ export type ChapterCardProps = {
 
 export function ChapterCard({ number, title, description, image, source }: ChapterCardProps) {
   return (
-    <View className="gap-4">
+    <VStack space="md">
       {/* Thumbnail */}
-      <View
+      <Box
         className="w-full rounded-xl overflow-hidden"
         style={{ aspectRatio: 16 / 9 }}
       >
@@ -26,23 +30,23 @@ export function ChapterCard({ number, title, description, image, source }: Chapt
           resizeMode="cover"
         />
         {/* Expand icon */}
-        <View className="absolute top-3 right-3">
+        <Box className="absolute top-3 right-3">
           <Icon as={Maximize2} size="sm" className="text-white" />
-        </View>
-      </View>
+        </Box>
+      </Box>
 
       {/* Title & description */}
-      <View>
-        <Text className="text-[18px] font-bold text-[#0f172a] leading-7">
+      <VStack space="xs">
+        <Heading size="md">
           {number}. {title}
-        </Text>
-        <Text className="text-[14px] text-[#64748b] leading-5 mt-1">
+        </Heading>
+        <Text size="sm" className="text-typography-600">
           {description}
         </Text>
-      </View>
+      </VStack>
 
       {/* Player */}
       <AudioPlayer source={source} chapterLabel={`Chapter ${number}`} />
-    </View>
+    </VStack>
   );
 }

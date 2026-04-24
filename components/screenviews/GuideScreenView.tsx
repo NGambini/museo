@@ -3,11 +3,14 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  View,
 } from 'react-native';
 import { ArrowLeft, Headphones, Share2, Ticket } from 'lucide-react-native';
 import { Icon } from '../ui/icon';
+import { Box } from '../ui/box';
+import { Text } from '../ui/text';
+import { Heading } from '../ui/heading';
+import { HStack } from '../ui/hstack';
+import { VStack } from '../ui/vstack';
 import { ChapterCard } from '../ChapterCard';
 
 const IMAGES = {
@@ -24,21 +27,21 @@ const AUDIO = require('../../assets/sounds/paris-louvre-museum.mp3');
 // ---------------------------------------------------------------------------
 export function GuideScreenView() {
   return (
-    <View className="flex-1 bg-[#f8f7f5]">
+    <Box className="flex-1 bg-background-50">
       {/* Header Nav */}
-      <View className="bg-white/90 border-b border-slate-100 flex-row items-center justify-between px-4 pt-4 pb-[17px]">
+      <Box className="bg-background-0/90 border-b border-outline-100 flex-row items-center justify-between px-4 pt-4 pb-[17px]">
         <Pressable className="w-10 h-10 items-center justify-center rounded-full">
-          <Icon as={ArrowLeft} size="sm" className="text-[#0f172a]" />
+          <Icon as={ArrowLeft} size="sm" className="text-typography-950" />
         </Pressable>
 
-        <Text className="text-[18px] font-bold text-[#0f172a] tracking-[-0.45px]">
+        <Heading size="lg" className="tracking-tight">
           Audio Guide
-        </Text>
+        </Heading>
 
         <Pressable className="w-10 h-10 items-end justify-center">
-          <Icon as={Share2} size="sm" className="text-[#0f172a]" />
+          <Icon as={Share2} size="sm" className="text-typography-950" />
         </Pressable>
-      </View>
+      </Box>
 
       <ScrollView
         className="flex-1"
@@ -46,63 +49,57 @@ export function GuideScreenView() {
         contentContainerStyle={{ paddingBottom: 32 }}
       >
         {/* Hero Section */}
-        <View className="px-4 pt-4">
-          <View className="rounded-xl overflow-hidden" style={[{ height: 256 }, styles.heroShadow]}>
+        <Box className="px-4 pt-4">
+          <Box className="rounded-xl overflow-hidden" style={[{ height: 256 }, styles.heroShadow]}>
             <Image
               source={IMAGES.hero}
               style={{ width: '100%', height: '100%' }}
               resizeMode="cover"
             />
-          </View>
-        </View>
+          </Box>
+        </Box>
 
         {/* Title & Info */}
-        <View className="px-4 pt-4 pb-6 border-b border-slate-100">
-          {/* Venue name + rating badge */}
-          <View className="flex-row items-start justify-between pt-2">
-            <View className="flex-1 mr-4 gap-[3.5px]">
-              <Text className="text-[30px] font-bold text-[#0f172a] leading-[38px]">
+        <Box className="px-4 pt-4 pb-6 border-b border-outline-100">
+          <HStack className="items-start justify-between pt-2">
+            <VStack className="flex-1 mr-4" space="xs">
+              <Heading size="3xl">
                 The Louvre Museum
-              </Text>
-              <View className="flex-row items-center gap-1">
-                <Icon as={Ticket} size="xs" className="text-[#f49d25]" />
-                <Text className="text-[16px] text-[#f49d25] leading-6">
+              </Heading>
+              <HStack className="items-center" space="xs">
+                <Icon as={Ticket} size="xs" className="text-primary-500" />
+                <Text size="md" className="text-primary-500">
                   Admission: €22
                 </Text>
-              </View>
-            </View>
-            <View className="bg-[rgba(244,157,37,0.1)] px-3 py-1 rounded-full">
-              <Text className="text-[14px] font-bold text-[#f49d25] leading-5">
+              </HStack>
+            </VStack>
+
+            <Box className="bg-primary-50 px-3 py-1 rounded-full">
+              <Text size="sm" className="font-bold text-primary-500">
                 4.9 ★
               </Text>
-            </View>
-          </View>
+            </Box>
+          </HStack>
 
           {/* History */}
-          <View className="mt-6 gap-2">
-            <Text className="text-[18px] font-bold text-[#0f172a] leading-7">
-              History
-            </Text>
-            <Text className="text-[14px] text-[#475569] leading-[22.75px]">
+          <VStack className="mt-6" space="xs">
+            <Heading size="lg">History</Heading>
+            <Text size="sm" className="text-typography-600 leading-relaxed">
               Originally built as a fortress in the late 12th century under
               Philip II, the Louvre was converted into a royal palace in the
               14th century. Today, it stands as the world's largest art museum
               and a historic monument in Paris.
             </Text>
-          </View>
-        </View>
+          </VStack>
+        </Box>
 
         {/* Chapters Section */}
-        <View className="px-4 py-8 gap-10">
-          {/* Section title */}
-          <View className="flex-row items-center gap-2">
-            <Icon as={Headphones} size="sm" className="text-[#0f172a]" />
-            <Text className="text-[20px] font-bold text-[#0f172a] leading-7">
-              Chapters
-            </Text>
-          </View>
+        <VStack className="px-4 py-8" space="2xl">
+          <HStack className="items-center" space="sm">
+            <Icon as={Headphones} size="sm" className="text-typography-950" />
+            <Heading size="xl">Chapters</Heading>
+          </HStack>
 
-          {/* Chapter list */}
           <ChapterCard
             number={1}
             title="The Mona Lisa (La Gioconda)"
@@ -126,14 +123,14 @@ export function GuideScreenView() {
             image={IMAGES.chapter3}
             source={AUDIO}
           />
-        </View>
+        </VStack>
       </ScrollView>
-    </View>
+    </Box>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Native styles (shadows are not supported via NativeWind)
+// Native styles (shadows non supportés via NativeWind)
 // ---------------------------------------------------------------------------
 const styles = StyleSheet.create({
   heroShadow: {

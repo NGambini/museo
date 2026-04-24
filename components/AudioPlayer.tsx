@@ -1,9 +1,14 @@
 import { Pause, Play } from 'lucide-react-native';
 import { useRef } from 'react';
-import { GestureResponderEvent, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { GestureResponderEvent, StyleSheet, TouchableOpacity } from 'react-native';
 import { AVPlaybackSource } from 'expo-av';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { Icon } from './ui/icon';
+import { Box } from './ui/box';
+import { Text } from './ui/text';
+import { HStack } from './ui/hstack';
+import { VStack } from './ui/vstack';
+import { theme } from '../constants/theme';
 
 export type AudioPlayerProps = {
   source: AVPlaybackSource;
@@ -20,55 +25,56 @@ export function AudioPlayer({ source, chapterLabel }: AudioPlayerProps) {
   }
 
   return (
-    <View className="bg-[#f8f7f5] border border-slate-100 rounded-xl p-[17px]">
-      <View className="flex-row items-center gap-4">
+    <Box className="bg-background-50 border border-outline-100 rounded-xl p-[17px]">
+      <HStack space="md" className="items-center">
         {/* Play / pause button */}
         <TouchableOpacity onPress={toggle} activeOpacity={0.8}>
           {isPlaying ? (
-            <View
-              className="w-12 h-12 rounded-full bg-[#f49d25] items-center justify-center"
+            <Box
+              className="w-12 h-12 rounded-full bg-primary-500 items-center justify-center"
               style={styles.playButtonShadow}
             >
               <Icon as={Pause} size="xs" className="text-white fill-white" />
-            </View>
+            </Box>
           ) : (
-            <View className="w-12 h-12 rounded-full border-2 border-[#f49d25] items-center justify-center">
-              <Icon as={Play} size="xs" className="text-[#f49d25] fill-[#f49d25]" />
-            </View>
+            <Box className="w-12 h-12 rounded-full border-2 border-primary-500 items-center justify-center">
+              <Icon as={Play} size="xs" className="text-primary-500 fill-primary-500" />
+            </Box>
           )}
         </TouchableOpacity>
 
         {/* Progress */}
-        <View className="flex-1 gap-1">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.5px]">
+        <VStack className="flex-1" space="xs">
+          <HStack className="items-center justify-between">
+            <Text size="xs" className="font-bold text-typography-400 uppercase tracking-widest">
               {currentTime} / {totalTime}
             </Text>
-            <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.5px]">
+            <Text size="xs" className="font-bold text-typography-400 uppercase tracking-widest">
               {chapterLabel}
             </Text>
-          </View>
+          </HStack>
+
           {/* Progress bar (tappable) */}
           <TouchableOpacity
             activeOpacity={1}
             onPress={handleSeek}
             onLayout={(e) => { barWidthRef.current = e.nativeEvent.layout.width; }}
-            className="h-[6px] rounded-full bg-[rgba(244,157,37,0.2)] overflow-hidden"
+            className="h-[6px] rounded-full bg-primary-100 overflow-hidden"
           >
-            <View
-              className="h-full rounded-full bg-[#f49d25]"
+            <Box
+              className="h-full rounded-full bg-primary-500"
               style={{ width: `${Math.round(progress * 100)}%` }}
             />
           </TouchableOpacity>
-        </View>
-      </View>
-    </View>
+        </VStack>
+      </HStack>
+    </Box>
   );
 }
 
 const styles = StyleSheet.create({
   playButtonShadow: {
-    shadowColor: '#f49d25',
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 6,

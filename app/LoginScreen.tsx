@@ -4,16 +4,15 @@ import {
   LoginScreenView,
   type LoginFieldErrors,
 } from '@/components/screenviews/LoginScreenView';
-import { API_BASE_URL } from '@/constants/api';
+import { useLogin } from '@/api/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const loginMutation = useLogin();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('noe@noe.test');
+  const [password, setPassword] = useState('Password123!');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [globalError, setGlobalError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({});
 
   function validate(): boolean {
@@ -30,38 +29,19 @@ export default function LoginScreen() {
     return Object.keys(errors).length === 0;
   }
 
-  async function handleSubmit() {
-    setGlobalError(null);
+  function handleSubmit() {
     if (!validate()) return;
-
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
-
-      if (response.status === 401) {
-        setGlobalError('Identifiants incorrects. Veuillez réessayer.');
-        return;
-      }
-      if (!response.ok) {
-        setGlobalError('Une erreur est survenue. Veuillez réessayer.');
-        return;
-      }
-
-      // TODO: stocker les tokens (access_token, refresh_token)
-      // const { access_token, refresh_token } = await response.json();
-      router.replace('/(tabs)/ExploreScreen');
-    } catch {
-      setGlobalError(
-        'Impossible de contacter le serveur. Vérifiez votre connexion.'
-      );
-    } finally {
-      setLoading(false);
-    }
+    loginMutation.mutate(
+      { email: email.trim(), password },
+      { onSuccess: () => router.replace('/(tabs)/ExploreScreen') }
+    );
   }
+
+  const globalError = loginMutation.error
+    ? (loginMutation.error as { status?: number }).status === 401
+      ? 'Identifiants incorrects. Veuillez réessayer.'
+      : 'Une erreur est survenue. Veuillez réessayer.'
+    : null;
 
   return (
     <LoginScreenView
@@ -77,7 +57,7 @@ export default function LoginScreen() {
       }}
       showPassword={showPassword}
       onToggleShowPassword={() => setShowPassword((v) => !v)}
-      loading={loading}
+      loading={loginMutation.isPending}
       globalError={globalError}
       fieldErrors={fieldErrors}
       onSubmit={handleSubmit}
