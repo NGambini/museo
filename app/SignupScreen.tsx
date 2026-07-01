@@ -43,7 +43,7 @@ export default function SignupScreen() {
     signupMutation.mutate(
       { email: email.trim(), password },
       {
-        onSuccess: () => router.replace('/(tabs)/ExploreScreen'),
+        onSuccess: () => router.replace('/HomeScreen'),
         onError: (error) => {
           if ((error as { status?: number }).status === 409) {
             setFieldErrors((prev) => ({

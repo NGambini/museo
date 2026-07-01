@@ -33,7 +33,7 @@ export default function LoginScreen() {
     if (!validate()) return;
     loginMutation.mutate(
       { email: email.trim(), password },
-      { onSuccess: () => router.replace('/(tabs)/ExploreScreen') }
+      { onSuccess: () => router.replace('/HomeScreen') }
     );
   }
 
