@@ -31,7 +31,13 @@
     "plugins": [
       "expo-router",
       "expo-web-browser",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "$(PRODUCT_NAME) utilise votre position pour afficher les lieux culturels à proximité."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
