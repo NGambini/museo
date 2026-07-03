@@ -9,7 +9,8 @@
     "web": "expo start --web",
     "build": "expo export --platform web --output-dir dist",
     "build:preview": "expo export --platform web --output-dir dist",
-    "test": "jest --watchAll"
+    "test": "jest --watchAll",
+    "generate:lottie-embeddings": "node scripts/generate-lottie-embeddings.mjs"
   },
   "jest": {
     "preset": "jest-expo"
@@ -58,6 +59,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@huggingface/transformers": "^4.2.0",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.1.10",

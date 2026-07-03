@@ -5,8 +5,8 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,    // 5 min : pas de refetch si la data est fraîche
-      gcTime: 24 * 60 * 60 * 1000, // 24h : durée de vie du cache sur disque
+      staleTime: 5 * 60 * 1000,    // 5 min — no refetch if data is fresh
+      gcTime: 24 * 60 * 60 * 1000, // 24h — cache lifetime on disk
     },
   },
 });

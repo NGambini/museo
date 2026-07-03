@@ -6,12 +6,17 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { Slot } from 'expo-router';
+import { LogBox } from 'react-native';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryClient, asyncStoragePersister } from '@/lib/queryClient';
 
 export { ErrorBoundary } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync();
+
+// NativeWind registers style interop on RN's deprecated SafeAreaView getter on load,
+// even though the app only uses SafeAreaView from react-native-safe-area-context.
+LogBox.ignoreLogs(['SafeAreaView has been deprecated']);
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({

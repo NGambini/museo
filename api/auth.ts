@@ -37,3 +37,7 @@ export function useLogin() {
 export function useSignup() {
   return useMutation({ mutationFn: signup });
 }
+
+export function useLogout() {
+  return useMutation({ mutationFn: logout });
+}
