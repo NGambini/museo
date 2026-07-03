@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/apiClient';
 import { tokenStore } from '@/lib/tokenStore';
+import { useAuth } from '@/providers/AuthProvider';
 
 type AuthTokens = { accessToken: string; refreshToken: string };
 
@@ -31,13 +32,16 @@ export async function logout(): Promise<void> {
 }
 
 export function useLogin() {
-  return useMutation({ mutationFn: login });
+  const { signIn } = useAuth();
+  return useMutation({ mutationFn: login, onSuccess: signIn });
 }
 
 export function useSignup() {
-  return useMutation({ mutationFn: signup });
+  const { signIn } = useAuth();
+  return useMutation({ mutationFn: signup, onSuccess: signIn });
 }
 
 export function useLogout() {
-  return useMutation({ mutationFn: logout });
+  const { signOut } = useAuth();
+  return useMutation({ mutationFn: logout, onSuccess: signOut });
 }

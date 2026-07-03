@@ -10,7 +10,8 @@
     "build": "expo export --platform web --output-dir dist",
     "build:preview": "expo export --platform web --output-dir dist",
     "test": "jest --watchAll",
-    "generate:lottie-embeddings": "node scripts/generate-lottie-embeddings.mjs"
+    "generate:lottie-embeddings": "node scripts/generate-lottie-embeddings.mjs",
+    "match-lottie": "node match-lottie.mjs"
   },
   "jest": {
     "preset": "jest-expo"
@@ -22,6 +23,7 @@
     "@gluestack-ui/utils": "^3.0.13",
     "@gorhom/bottom-sheet": "^5.0.0-alpha.11",
     "@legendapp/motion": "^2.4.0",
+    "@lottiefiles/dotlottie-react": "^0.19.7",
     "@react-aria/utils": "^3.29.0",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-navigation/native": "^7.1.6",
@@ -41,6 +43,7 @@
     "expo-status-bar": "~3.0.8",
     "expo-system-ui": "~6.0.7",
     "expo-web-browser": "~15.0.7",
+    "lottie-react-native": "~7.3.1",
     "lucide-react-native": "^0.510.0",
     "nativewind": "^4.2.1",
     "react": "19.1.0",

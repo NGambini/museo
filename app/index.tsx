@@ -1,5 +1,8 @@
 import { Redirect } from 'expo-router';
+import { useAuth } from '@/providers/AuthProvider';
 
 export default function Index() {
-  return <Redirect href="/LoginScreen" />;
+  const { status } = useAuth();
+
+  return <Redirect href={status === 'authenticated' ? '/HomeScreen' : '/LoginScreen'} />;
 }

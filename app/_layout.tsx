@@ -1,11 +1,12 @@
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { AppThemeProvider } from '@/providers/AppThemeProvider';
+import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import '@/global.css';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { Slot } from 'expo-router';
+import { Stack } from 'expo-router';
 import { LogBox } from 'react-native';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryClient, asyncStoragePersister } from '@/lib/queryClient';
@@ -28,10 +29,6 @@ export default function RootLayout() {
     if (error) throw error;
   }, [error]);
 
-  useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
-  }, [loaded]);
-
   if (!loaded) return null;
 
   return (
@@ -41,9 +38,23 @@ export default function RootLayout() {
     >
       <GluestackUIProvider mode="light">
         <AppThemeProvider>
-          <Slot />
+          <AuthProvider>
+            <RootNavigator />
+          </AuthProvider>
         </AppThemeProvider>
       </GluestackUIProvider>
     </PersistQueryClientProvider>
   );
+}
+
+function RootNavigator() {
+  const { status } = useAuth();
+
+  useEffect(() => {
+    if (status !== 'loading') SplashScreen.hideAsync();
+  }, [status]);
+
+  if (status === 'loading') return null;
+
+  return <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />;
 }

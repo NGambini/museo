@@ -38,7 +38,7 @@ export interface LottieMatchResult {
   score: number;
 }
 
-const DEFAULT_LOTTIE_ID = 'sculpture';
+const DEFAULT_LOTTIE_ID = 'abstract-painting';
 
 export function normalizeText(value: string): string {
   return value

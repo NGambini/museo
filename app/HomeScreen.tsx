@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import * as Location from 'expo-location';
+import { useRouter } from 'expo-router';
 import { HomeScreenView, type HistoryItem } from '@/components/screenviews/HomeScreenView';
 import type { MapPin } from '@/components/map';
 import { MAP_ZOOM, MAP_WIDTH, MAP_HEIGHT, MAP_SCALE, MAX_PINS, computeRadius } from '@/lib/mapUtils';
@@ -68,6 +69,7 @@ function buildStaticMapUrl(center: Coords): string {
 }
 
 export default function HomeScreen() {
+  const router = useRouter();
   const mapRef = useRef<View>(null) as React.RefObject<View>;
 
   const [mapUrl, setMapUrl] = useState<string | null>(null);
@@ -120,8 +122,10 @@ export default function HomeScreen() {
   };
 
   const handlePinPress = (pin: MapPin) => {
-    // TODO: navigate to place detail screen
-    console.log('Pin pressed:', pin.name);
+    router.push({
+      pathname: '/LottieTransitionScreen',
+      params: { placeId: pin.id, image: pin.photoUrl ?? '', name: pin.name },
+    });
   };
 
   return (
