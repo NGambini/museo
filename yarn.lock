@@ -7510,6 +7510,11 @@ react-native-svg@15.12.1:
     css-tree "^1.1.3"
     warn-once "0.1.1"
 
+react-native-transcript-karaoke@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/react-native-transcript-karaoke/-/react-native-transcript-karaoke-3.0.0.tgz#38fd8c8038964b5ff8a7835deed337176646fcdb"
+  integrity sha512-ZQMSl9tALO4m17PM1DuYDyXY0IhxLATqLGnpmDUTrMnxJiV2Urfu3YM6r9WmphwWSnq4x3KJHrmLsvTyFabfcg==
+
 react-native-web@^0.21.0:
   version "0.21.2"
   resolved "https://registry.npmjs.org/react-native-web/-/react-native-web-0.21.2.tgz"

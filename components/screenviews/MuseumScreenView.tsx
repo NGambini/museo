@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronRight, FileText } from 'lucide-react-native';
 import { ScrollView } from '@/components/ui/scroll-view';
@@ -18,20 +18,35 @@ export interface MuseumScreenViewProps {
   image?: string;
   name?: string;
   audioguide?: Audioguide;
+  chapters?: Chapter[];
+  chapter?: Chapter;
+  chapterIndex?: number;
+  onPreviousChapter?: () => void;
+  onNextChapter?: () => void;
 }
 
-interface Chapter {
+export interface Chapter {
   chapter_number: number;
   title: string;
   text: string;
+  lines?: string[];
+  transcript?: string;
+  description?: string;
   image_url?: string;
   audio_url?: string;
+  image_search_query?: string;
 }
 
-export function MuseumScreenView({ image, name, audioguide }: MuseumScreenViewProps) {
-  const chapters = (audioguide?.attributes?.chapters ?? []) as Chapter[];
-  const [chapterIndex, setChapterIndex] = useState(0);
-  const chapter = chapters[chapterIndex];
+export function MuseumScreenView({
+  image,
+  name,
+  audioguide,
+  chapters = [],
+  chapter,
+  chapterIndex = 0,
+  onPreviousChapter,
+  onNextChapter,
+}: MuseumScreenViewProps) {
 
   return (
     <SafeAreaView style={{ flex: 1 }} className="bg-background-0">
@@ -55,7 +70,7 @@ export function MuseumScreenView({ image, name, audioguide }: MuseumScreenViewPr
 
             <VStack space="sm" className="w-full">
               <Text className="text-primary-500 font-bold uppercase tracking-widest" size="xs">
-                Curated guide
+                Audioguide personnalisé
               </Text>
 
               {name ? (
@@ -64,9 +79,9 @@ export function MuseumScreenView({ image, name, audioguide }: MuseumScreenViewPr
                 </Heading>
               ) : null}
 
-              {audioguide?.attributes?.title ? (
+              {audioguide?.attributes?.history ? (
                 <Text className="text-typography-600 leading-6" size="md">
-                  {audioguide.attributes.title}
+                  {audioguide.attributes.history}
                 </Text>
               ) : null}
             </VStack>
@@ -103,18 +118,28 @@ export function MuseumScreenView({ image, name, audioguide }: MuseumScreenViewPr
                     </Text>
                   </HStack>
 
-                  <Text className="text-typography-900 leading-6" size="md">
-                    {chapter.text}
-                  </Text>
+                  {chapter.audio_url && chapter.transcript ? (
+                    <AudioPlayer
+                      source={{ uri: chapter.audio_url }}
+                      chapterLabel={`Chapter ${chapter.chapter_number}: ${chapter.title}`}
+                      transcript={chapter.transcript}
+                    />
+                  ) : (
+                    <>
+                      <Text className="text-typography-900 leading-6" size="md">
+                        {chapter.text}
+                      </Text>
 
-                  {chapter.audio_url ? (
-                    <Box className="w-full border-t border-outline-200/30 pt-4">
-                      <AudioPlayer
-                        source={{ uri: chapter.audio_url }}
-                        chapterLabel={`Chapter ${chapter.chapter_number}: ${chapter.title}`}
-                      />
-                    </Box>
-                  ) : null}
+                      {chapter.audio_url ? (
+                        <Box className="w-full border-t border-outline-200/30 pt-4">
+                          <AudioPlayer
+                            source={{ uri: chapter.audio_url }}
+                            chapterLabel={`Chapter ${chapter.chapter_number}: ${chapter.title}`}
+                          />
+                        </Box>
+                      ) : null}
+                    </>
+                  )}
                 </VStack>
               </VStack>
 
@@ -125,7 +150,7 @@ export function MuseumScreenView({ image, name, audioguide }: MuseumScreenViewPr
                     action="secondary"
                     className="rounded-full border-outline-200 px-4 py-2"
                     isDisabled={chapterIndex === 0}
-                    onPress={() => setChapterIndex((i) => Math.max(0, i - 1))}
+                    onPress={onPreviousChapter}
                   >
                     <ButtonIcon as={ChevronLeft} className="text-typography-600" />
                     <ButtonText className="text-typography-600">Previous</ButtonText>
@@ -143,7 +168,7 @@ export function MuseumScreenView({ image, name, audioguide }: MuseumScreenViewPr
                   <Button
                     className="rounded-full px-6 py-2 shadow-hard-5"
                     isDisabled={chapterIndex === chapters.length - 1}
-                    onPress={() => setChapterIndex((i) => Math.min(chapters.length - 1, i + 1))}
+                    onPress={onNextChapter}
                   >
                     <ButtonText>Next</ButtonText>
                     <ButtonIcon as={ChevronRight} className="text-white" />

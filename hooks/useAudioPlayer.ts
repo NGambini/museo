@@ -59,6 +59,8 @@ export type AudioPlayerState = {
   progress: number;
   currentTime: string;
   totalTime: string;
+  positionMillis: number;
+  durationMillis: number;
   toggle: () => void;
   seekTo: (ratio: number) => void;
 };
@@ -134,6 +136,8 @@ export function useAudioPlayer(source: AVPlaybackSource): AudioPlayerState {
     progress: durationMs > 0 ? positionMs / durationMs : 0,
     currentTime: formatTime(positionMs),
     totalTime: formatTime(durationMs),
+    positionMillis: positionMs,
+    durationMillis: durationMs,
     toggle,
     seekTo,
   };

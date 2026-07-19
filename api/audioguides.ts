@@ -12,7 +12,24 @@ export type Audioguide = {
   longitude: number;
   lang: string;
   userId: string;
-  attributes: { title?: string; chapters?: unknown[] };
+  attributes: {
+    title: string;
+    rating: number;
+    history: string;
+    chapters: {
+      text: string;
+      lines: string[];
+      title: string;
+      audio_url: string;
+      image_url: string;
+      transcript: string;
+      description: string;
+      chapter_number: number;
+      image_search_query: string;
+    }[];
+    main_image_url: string;
+    admission_price: number | null;
+  };
 };
 
 const KEYS = {

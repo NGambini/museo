@@ -2,6 +2,7 @@ import { Pause, Play } from 'lucide-react-native';
 import { useRef } from 'react';
 import { GestureResponderEvent, StyleSheet, TouchableOpacity } from 'react-native';
 import { AVPlaybackSource } from 'expo-av';
+import { Karaoke } from 'react-native-transcript-karaoke';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { Icon } from './ui/icon';
 import { Box } from './ui/box';
@@ -13,15 +14,22 @@ import { theme } from '../constants/theme';
 export type AudioPlayerProps = {
   source: AVPlaybackSource;
   chapterLabel: string;
+  transcript?: string;
 };
 
-export function AudioPlayer({ source, chapterLabel }: AudioPlayerProps) {
-  const { isPlaying, progress, currentTime, totalTime, toggle, seekTo } = useAudioPlayer(source);
+export function AudioPlayer({ source, chapterLabel, transcript }: AudioPlayerProps) {
+  const { isPlaying, progress, currentTime, totalTime, positionMillis, durationMillis, toggle, seekTo } =
+    useAudioPlayer(source);
   const barWidthRef = useRef(0);
 
   function handleSeek(e: GestureResponderEvent) {
     const ratio = e.nativeEvent.locationX / barWidthRef.current;
     seekTo(Math.min(1, Math.max(0, ratio)));
+  }
+
+  function handleKaraokeSeek(seekToMillis: number) {
+    if (durationMillis === 0) return;
+    seekTo(Math.min(1, Math.max(0, seekToMillis / durationMillis)));
   }
 
   return (
@@ -68,10 +76,25 @@ export function AudioPlayer({ source, chapterLabel }: AudioPlayerProps) {
           </TouchableOpacity>
         </VStack>
       </HStack>
+
+      {transcript ? (
+        <Box className="w-full border-t border-outline-100 mt-4 pt-4">
+          <Karaoke
+            transcript={transcript}
+            progress={positionMillis}
+            progressType="milliseconds"
+            style={styles.transcriptLine}
+            activeStyle={styles.transcriptLineActive}
+            onSeekTo={handleKaraokeSeek}
+          />
+        </Box>
+      ) : null}
     </Box>
   );
 }
 
+// Karaoke renders raw RN `Text` internally and only accepts TextStyle props,
+// so these can't be expressed as NativeWind classNames.
 const styles = StyleSheet.create({
   playButtonShadow: {
     shadowColor: theme.primary,
@@ -79,5 +102,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 4,
+  },
+  transcriptLine: {
+    color: theme.secondary,
+    fontSize: 15,
+    lineHeight: 24,
+    marginBottom: 4,
+  },
+  transcriptLineActive: {
+    color: theme.primary,
+    fontWeight: '600',
   },
 });
