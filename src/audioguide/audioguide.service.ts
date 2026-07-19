@@ -12,6 +12,17 @@ import { GoogleGenAI } from '@google/genai';
 import { Audioguide } from './audioguide.entity';
 import { GeminiChapter, GeminiResult, PlaceDetails } from './audioguide.types';
 import { buildAudioguidePrompt } from './audioguide.prompts';
+import {
+  buildMainImagePath,
+  buildChapterImagePath,
+  buildChapterAudioPath,
+  parseGeminiText,
+  parsePlacesApiResponse,
+  PlacesApiRawData,
+  buildAudioguideAttributes,
+  replaceAttributePathsWithUrls,
+  retryWithBackoff,
+} from './audioguide.utils';
 
 @Injectable()
 export class AudioguideService {
@@ -23,7 +34,6 @@ export class AudioguideService {
     private readonly audioguideRepository: Repository<Audioguide>,
   ) {
     this.storage = new Storage({ projectId: process.env.GOOGLE_PROJECT_ID });
-
     this.ttsClient = new TextToSpeechClient();
   }
 
@@ -44,7 +54,6 @@ export class AudioguideService {
   }
 
   async remove(id: string, userId: string): Promise<void> {
-    // Fetch raw entity (no signed URLs needed for deletion)
     const audioguide = await this.audioguideRepository.findOne({
       where: { id },
     });
@@ -107,14 +116,11 @@ export class AudioguideService {
     return this.withSignedUrls(saved);
   }
 
-  /**
-   * Generates a signed URL for a GCS object path, valid for 1 hour.
-   */
   private async signedUrl(path: string): Promise<string> {
     const bucket = this.storage.bucket(process.env.GCS_BUCKET_NAME!);
     const [url] = await bucket.file(path).getSignedUrl({
       action: 'read',
-      expires: Date.now() + 60 * 60 * 1000, // 1 hour
+      expires: Date.now() + 60 * 60 * 1000,
     });
     return url;
   }
@@ -124,27 +130,10 @@ export class AudioguideService {
    * in `attributes` replaced by signed URLs (valid 1 hour).
    */
   private async withSignedUrls(audioguide: Audioguide): Promise<Audioguide> {
-    const attrs = { ...audioguide.attributes } as Record<string, unknown>;
-
-    if (typeof attrs.main_image_url === 'string') {
-      attrs.main_image_url = await this.signedUrl(attrs.main_image_url);
-    }
-
-    if (Array.isArray(attrs.chapters)) {
-      attrs.chapters = await Promise.all(
-        (attrs.chapters as GeminiChapter[]).map(async (chapter) => {
-          const updated = { ...chapter };
-          if (typeof updated.image_url === 'string') {
-            updated.image_url = await this.signedUrl(updated.image_url);
-          }
-          if (typeof updated.audio_url === 'string') {
-            updated.audio_url = await this.signedUrl(updated.audio_url);
-          }
-          return updated;
-        }),
-      );
-    }
-
+    const attrs = await replaceAttributePathsWithUrls(
+      audioguide.attributes,
+      (path) => this.signedUrl(path),
+    );
     return { ...audioguide, attributes: attrs };
   }
 
@@ -157,38 +146,20 @@ export class AudioguideService {
       const res = await fetch(
         `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=name,geometry,rating,photos&key=${process.env.GOOGLE_PLACES_API_KEY}`,
       );
-      const data = (await res.json()) as {
-        status: string;
-        result: {
-          name: string;
-          geometry: { location: { lat: number; lng: number } };
-          rating?: number;
-          photos?: Array<{ photo_reference: string }>;
-        };
-      };
+      const data = (await res.json()) as PlacesApiRawData;
+      const { placeName, latitude, longitude, rating, photoReference } =
+        parsePlacesApiResponse(data);
 
-      if (data.status !== 'OK') {
-        throw new Error(`Google Places API returned status: ${data.status}`);
-      }
-
-      const placeName = data.result.name;
       console.log(`Google Places OK: ${placeName}`);
 
-      // Returns the GCS path (not a full URL) for the main photo
       const mainImagePath = await this.uploadMainPhoto(
-        data.result.photos?.[0]?.photo_reference,
+        photoReference,
         placeId,
         lang,
         bucket,
       );
 
-      return {
-        placeName,
-        latitude: data.result.geometry.location.lat,
-        longitude: data.result.geometry.location.lng,
-        rating: data.result.rating ?? null,
-        mainImagePath,
-      };
+      return { placeName, latitude, longitude, rating, mainImagePath };
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       console.error(`Error at Google Places step: ${msg}`, error);
@@ -209,7 +180,7 @@ export class AudioguideService {
   ): Promise<string | undefined> {
     if (!photoRef) return undefined;
 
-    const path = `${placeId}/${lang}/pictures/main.jpg`;
+    const path = buildMainImagePath(placeId, lang);
     const photoRes = await fetch(
       `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoRef}&key=${process.env.GOOGLE_PLACES_API_KEY}`,
     );
@@ -227,29 +198,30 @@ export class AudioguideService {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
-      const result = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-lite',
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: buildAudioguidePrompt(placeName, lang) }],
-          },
-        ],
-        config: { responseMimeType: 'application/json' },
+      const generateContent = () =>
+        ai.models.generateContent({
+          model: 'gemini-2.5-flash-lite',
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: buildAudioguidePrompt(placeName, lang) }],
+            },
+          ],
+          config: { responseMimeType: 'application/json' },
+        });
+
+      const result = await retryWithBackoff(generateContent, {
+        retries: 4,
+        baseDelayMs: 1000,
+        onRetry: (error, attempt, delayMs) => {
+          const status = (error as { status?: number })?.status;
+          console.warn(
+            `Gemini overloaded (status ${status}), retry ${attempt}/4 in ${Math.round(delayMs)}ms`,
+          );
+        },
       });
 
-      const responseText = result.text!;
-      const geminiResult = JSON.parse(responseText) as GeminiResult;
-
-      if (
-        !geminiResult.title ||
-        !geminiResult.history ||
-        !Array.isArray(geminiResult.chapters) ||
-        geminiResult.chapters.length < 3 ||
-        geminiResult.chapters.length > 5
-      ) {
-        throw new Error('Invalid Gemini response structure');
-      }
+      const geminiResult = parseGeminiText(result.text!);
 
       console.log(
         `Gemini OK: ${geminiResult.chapters.length} chapters generated`,
@@ -315,13 +287,12 @@ export class AudioguideService {
         return;
       }
 
-      const path = `${placeId}/${lang}/pictures/chapter_${chapter.chapter_number}.jpg`;
+      const path = buildChapterImagePath(placeId, lang, chapter.chapter_number);
       const imgBuffer = Buffer.from(
         await (await fetch(thumbUrl)).arrayBuffer(),
       );
       await bucket.file(path).save(imgBuffer, { contentType: 'image/jpeg' });
 
-      // Store the GCS path — signed URL is generated at read time
       chapter.image_url = path;
       console.log(`Chapter ${chapter.chapter_number} image uploaded`);
     } catch {
@@ -371,12 +342,10 @@ export class AudioguideService {
       voice: { languageCode: 'fr-FR', name: 'fr-FR-Chirp-HD-F' },
       audioConfig: {
         audioEncoding: 'MP3' as unknown as number,
-        // pitch: 3.0,
-        // speakingRate: 0.9,
       },
     });
 
-    const path = `${placeId}/${lang}/tracks/chapter_${chapter.chapter_number}.mp3`;
+    const path = buildChapterAudioPath(placeId, lang, chapter.chapter_number);
     const audioBuffer = Buffer.from(ttsResponse.audioContent as Uint8Array);
     await bucket.file(path).save(audioBuffer, { contentType: 'audio/mpeg' });
 
@@ -400,14 +369,7 @@ export class AudioguideService {
         longitude: placeDetails.longitude,
         lang,
         userId,
-        attributes: {
-          main_image_url: placeDetails.mainImagePath ?? null,
-          rating: placeDetails.rating,
-          admission_price: geminiResult.admission_price,
-          title: geminiResult.title,
-          history: geminiResult.history,
-          chapters: geminiResult.chapters,
-        },
+        attributes: buildAudioguideAttributes(placeDetails, geminiResult),
       });
 
       const saved = await this.audioguideRepository.save(audioguide);

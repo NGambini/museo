@@ -19,11 +19,13 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Request as ExpressRequest } from 'express';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AudioguideService } from './audioguide.service';
 import { GenerateAudioguideDto } from './dto/generate-audioguide.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { Audioguide } from './audioguide.entity';
 import { TimeoutInterceptor } from '../common/interceptors/timeout.interceptor';
+import { trackByUserOrIp } from '../common/guards/track-by-user.util';
 
 interface AuthRequest extends ExpressRequest {
   user: { id: string };
@@ -37,9 +39,14 @@ export class AudioguideController {
   constructor(private readonly audioguideService: AudioguideService) {}
 
   @Post('generate')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({
+    default: { limit: 5, ttl: 3_600_000, getTracker: trackByUserOrIp },
+  })
   @UseInterceptors(new TimeoutInterceptor(60_000))
   @ApiOperation({ summary: 'Generate an audioguide from a Google Places ID' })
   @ApiResponse({ status: 201, type: Audioguide })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   @ApiResponse({ status: 500, description: 'Generation failed' })
   generate(
     @Body() dto: GenerateAudioguideDto,
