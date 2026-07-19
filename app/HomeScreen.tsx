@@ -1,10 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View } from 'react-native';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { HomeScreenView, type HistoryItem } from '@/components/screenviews/HomeScreenView';
 import type { MapPin } from '@/components/map';
 import { MAP_ZOOM, MAP_WIDTH, MAP_HEIGHT, MAP_SCALE, MAX_PINS, computeRadius } from '@/lib/mapUtils';
+import { fetchPlaceSuggestions, fetchPlaceDetails, type PlaceSuggestion } from '@/lib/placesApi';
+import { useGenerateAudioguide } from '@/api/audioguides';
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 const EIFFEL_TOWER = { latitude: 48.8584, longitude: 2.2945 };
 
@@ -71,12 +76,48 @@ function buildStaticMapUrl(center: Coords): string {
 export default function HomeScreen() {
   const router = useRouter();
   const mapRef = useRef<View>(null) as React.RefObject<View>;
+  const generateAudioguide = useGenerateAudioguide();
 
   const [mapUrl, setMapUrl] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState<Coords | null>(null);
   const [mapPins, setMapPins] = useState<MapPin[]>([]);
   const [selectedPin, setSelectedPin] = useState<MapPin | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchQueryRef = useRef('');
+  const suppressNextSearchRef = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      setSearchQuery('');
+      setSuggestions([]);
+    }, [])
+  );
+
+  useEffect(() => {
+    if (suppressNextSearchRef.current) {
+      suppressNextSearchRef.current = false;
+      return;
+    }
+    const query = searchQuery.trim();
+    if (!query) {
+      setSuggestions([]);
+      setIsSearching(false);
+      return;
+    }
+    setIsSearching(true);
+    const timeout = setTimeout(async () => {
+      const results = await fetchPlaceSuggestions(query).catch(() => []);
+      if (searchQueryRef.current === query) {
+        setSuggestions(results);
+        setIsSearching(false);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
 
   useEffect(() => {
     (async () => {
@@ -122,10 +163,38 @@ export default function HomeScreen() {
   };
 
   const handlePinPress = (pin: MapPin) => {
+    generateAudioguide.mutate({ place_id: pin.id });
     router.push({
       pathname: '/LottieTransitionScreen',
       params: { placeId: pin.id, image: pin.photoUrl ?? '', name: pin.name },
     });
+  };
+
+  const handleSearchQueryChange = (text: string) => {
+    searchQueryRef.current = text.trim();
+    setSearchQuery(text);
+  };
+
+  const handleSelectSuggestion = async (suggestion: PlaceSuggestion) => {
+    suppressNextSearchRef.current = true;
+    setSearchQuery(suggestion.mainText);
+    setSuggestions([]);
+
+    const place = await fetchPlaceDetails(suggestion.placeId).catch(() => null);
+    if (!place) return;
+
+    const pin: MapPin = {
+      id: place.placeId,
+      name: place.name,
+      latitude: place.latitude,
+      longitude: place.longitude,
+      photoUrl: place.photoUrl,
+    };
+    const center = { latitude: pin.latitude, longitude: pin.longitude };
+    setMapCenter(center);
+    setMapUrl(buildStaticMapUrl(center));
+    setMapPins((prev) => [pin, ...prev.filter((p) => p.id !== pin.id)].slice(0, MAX_PINS));
+    handlePinPress(pin);
   };
 
   return (
@@ -140,6 +209,11 @@ export default function HomeScreen() {
       onPinSelect={handlePinSelect}
       onPinPress={handlePinPress}
       onDismiss={dismissTooltip}
+      searchQuery={searchQuery}
+      onSearchQueryChange={handleSearchQueryChange}
+      suggestions={suggestions}
+      isSearching={isSearching}
+      onSelectSuggestion={handleSelectSuggestion}
     />
   );
 }

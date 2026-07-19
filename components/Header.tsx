@@ -1,20 +1,20 @@
 import React from 'react';
 import { useRouter } from 'expo-router';
 import { HStack } from '@/components/ui/hstack';
-import { Heading } from '@/components/ui/heading';
-import { Image } from '@/components/ui/image';
 import { Pressable } from '@/components/ui/pressable';
 import { Menu, MenuItem, MenuItemLabel } from '@/components/ui/menu';
-import { User, ChevronDown, Settings, LogOut } from 'lucide-react-native';
+import { User, ChevronDown, ChevronLeft, Settings, LogOut } from 'lucide-react-native';
 import { theme } from '@/constants/theme';
 import { useLogout } from '@/api/auth';
 import { queryClient } from '@/lib/queryClient';
+import { HeaderTitle } from '@/components/HeaderTitle';
 
 export interface HeaderProps {
   title?: string;
+  isHome?: boolean;
 }
 
-export function Header({ title = 'Muséo' }: HeaderProps) {
+export function Header({ title = 'Muséo', isHome = false }: HeaderProps) {
   const router = useRouter();
   const logoutMutation = useLogout();
 
@@ -29,15 +29,22 @@ export function Header({ title = 'Muséo' }: HeaderProps) {
 
   return (
     <HStack className="items-center justify-between px-4 h-16 bg-background-0/90">
-      <HStack className="items-center gap-2">
-        <Image
-          source={require('@/assets/images/icon.png')}
-          size="none"
-          className="w-16 h-16 rounded-lg"
-          alt="Muséo"
-        />
-        <Heading className="text-primary-500" size="2xl">{title}</Heading>
-      </HStack>
+      {isHome ? (
+        <HStack className="items-center gap-2"><HeaderTitle title={title} /></HStack>
+      ) : (
+        <>
+          <Pressable onPress={() => router.back()}>
+            <ChevronLeft size={24} color={theme.secondary} />
+          </Pressable>
+          <HStack
+            pointerEvents="none"
+            className="items-center gap-2 absolute left-0 right-0 justify-center"
+          >
+            <HeaderTitle title={title} />
+          </HStack>
+        </>
+      )}
+
       <Menu
         placement="bottom right"
         offset={5}

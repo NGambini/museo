@@ -20,6 +20,11 @@ const KEYS = {
   one: (id: string) => ['audioguides', id] as const,
 };
 
+// Fixed key (not per-place): only one generation is ever in flight at a time in
+// this flow, so LottieTransitionScreen can watch it via useMutationState without
+// HomeScreen having to stay mounted or pass anything through navigation params.
+export const GENERATE_AUDIOGUIDE_MUTATION_KEY = ['audioguides', 'generate'] as const;
+
 export function useAudioguides() {
   return useQuery({
     queryKey: KEYS.all,
@@ -36,6 +41,7 @@ export function useAudioguide(id: string) {
 
 export function useGenerateAudioguide() {
   return useMutation({
+    mutationKey: GENERATE_AUDIOGUIDE_MUTATION_KEY,
     mutationFn: (input: { place_id: string; lang?: string }) =>
       apiFetch<Audioguide>('/audioguides/generate', {
         method: 'POST',
@@ -50,14 +56,3 @@ export function useGenerateAudioguide() {
   });
 }
 
-export function useDeleteAudioguide() {
-  return useMutation({
-    mutationFn: (id: string) => apiFetch<void>(`/audioguides/${id}`, { method: 'DELETE' }),
-    onSuccess: (_, id) => {
-      queryClient.setQueryData<Audioguide[]>(KEYS.all, (prev = []) =>
-        prev.filter((a) => a.id !== id)
-      );
-      queryClient.removeQueries({ queryKey: KEYS.one(id) });
-    },
-  });
-}

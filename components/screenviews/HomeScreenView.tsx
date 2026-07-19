@@ -9,10 +9,13 @@ import { Text } from '@/components/ui/text';
 import { Image } from '@/components/ui/image';
 import { Pressable } from '@/components/ui/pressable';
 import { Divider } from '@/components/ui/divider';
-import { Search, Clock, ChevronRight } from 'lucide-react-native';
+import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
+import { Search, Clock, ChevronRight, Landmark } from 'lucide-react-native';
 import { theme } from '@/constants/theme';
 import { MapSection, PinTooltip, type MapPin } from '@/components/map';
 import { Header } from '@/components/Header';
+import type { PlaceSuggestion } from '@/lib/placesApi';
 
 export type { MapPin };
 
@@ -33,6 +36,11 @@ export interface HomeScreenViewProps {
   onPinSelect: (pin: MapPin, coords: { x: number; y: number }) => void;
   onPinPress: (pin: MapPin) => void;
   onDismiss: () => void;
+  searchQuery: string;
+  onSearchQueryChange: (text: string) => void;
+  suggestions: PlaceSuggestion[];
+  isSearching: boolean;
+  onSelectSuggestion: (suggestion: PlaceSuggestion) => void;
 }
 
 export function HomeScreenView({
@@ -46,19 +54,62 @@ export function HomeScreenView({
   onPinSelect,
   onPinPress,
   onDismiss,
+  searchQuery,
+  onSearchQueryChange,
+  suggestions,
+  isSearching,
+  onSelectSuggestion,
 }: HomeScreenViewProps) {
   return (
     <SafeAreaView style={{ flex: 1 }} className="bg-background-0">
-      <Header />
+      <Header isHome />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         <VStack space="xl" className="px-4 pt-4">
 
           {/* Search bar */}
-          <HStack className="items-center bg-background-50 rounded-full px-4 py-3 shadow-sm">
-            <Search size={18} color={theme.secondary} />
-            <Text className="ml-3 text-typography-400" size="md">Find a place</Text>
-          </HStack>
+          <VStack className="relative" style={{ zIndex: 10 }}>
+            <Input variant="rounded" size="lg" className="bg-background-50 border-transparent shadow-sm">
+              <InputSlot className="pl-4">
+                <InputIcon as={Search} className="text-typography-400" />
+              </InputSlot>
+              <InputField
+                placeholder="Find a place"
+                value={searchQuery}
+                onChangeText={onSearchQueryChange}
+              />
+              {isSearching && (
+                <InputSlot className="pr-4">
+                  <Spinner size="small" />
+                </InputSlot>
+              )}
+            </Input>
+
+            {suggestions.length > 0 && (
+              <Box className="absolute top-full mt-2 left-0 right-0 bg-background-0 rounded-2xl shadow-md overflow-hidden">
+                {suggestions.map((suggestion, index) => (
+                  <Box key={suggestion.placeId}>
+                    {index > 0 && <Divider orientation="horizontal" />}
+                    <Pressable onPress={() => onSelectSuggestion(suggestion)} className="px-4 py-3">
+                      <HStack className="items-center gap-3">
+                        <Landmark size={16} color={theme.secondary} />
+                        <VStack className="flex-1">
+                          <Text className="text-typography-900" size="sm" numberOfLines={1}>
+                            {suggestion.mainText}
+                          </Text>
+                          {suggestion.secondaryText ? (
+                            <Text className="text-typography-400" size="xs" numberOfLines={1}>
+                              {suggestion.secondaryText}
+                            </Text>
+                          ) : null}
+                        </VStack>
+                      </HStack>
+                    </Pressable>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </VStack>
 
           {/* Map */}
           <MapSection
