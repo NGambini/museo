@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useColorScheme } from 'nativewind';
 import { SettingsScreenView } from '@/components/screenviews/SettingsScreenView';
-import { validatePasswordChange, type SettingsPasswordErrors } from '@/components/screenviews/settingsUtils';
+import { validatePasswordChange, type SettingsPasswordErrors } from '@/lib/settingsUtils';
 
 export default function SettingsScreen() {
   const { colorScheme, setColorScheme } = useColorScheme();

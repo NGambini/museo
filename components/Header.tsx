@@ -28,7 +28,10 @@ export function Header({ title = 'Muséo', isHome = false }: HeaderProps) {
   };
 
   return (
-    <HStack className="items-center justify-between px-4 h-16 bg-background-0/90">
+    <HStack
+      className="items-center justify-between px-4 h-16 bg-background-0/90 shadow-soft-1"
+      style={{ shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 2 }}
+    >
       {isHome ? (
         <HStack className="items-center gap-2"><HeaderTitle title={title} /></HStack>
       ) : (

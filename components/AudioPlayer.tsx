@@ -54,12 +54,13 @@ export function AudioPlayer({ source, chapterLabel, transcript }: AudioPlayerPro
         {/* Progress */}
         <VStack className="flex-1" space="xs">
           <HStack className="items-center justify-between">
+            <Text size="xs" className="font-bold text-typography-400 uppercase tracking-widest max-w-[60%]">
+              {chapterLabel}
+            </Text>
             <Text size="xs" className="font-bold text-typography-400 uppercase tracking-widest">
               {currentTime} / {totalTime}
             </Text>
-            <Text size="xs" className="font-bold text-typography-400 uppercase tracking-widest">
-              {chapterLabel}
-            </Text>
+
           </HStack>
 
           {/* Progress bar (tappable) */}
@@ -67,7 +68,7 @@ export function AudioPlayer({ source, chapterLabel, transcript }: AudioPlayerPro
             activeOpacity={1}
             onPress={handleSeek}
             onLayout={(e) => { barWidthRef.current = e.nativeEvent.layout.width; }}
-            className="h-[6px] rounded-full bg-primary-100 overflow-hidden"
+            className="mt-2 h-[6px] rounded-full bg-primary-100 overflow-hidden"
           >
             <Box
               className="h-full rounded-full bg-primary-500"

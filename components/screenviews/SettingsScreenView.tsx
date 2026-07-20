@@ -14,7 +14,8 @@ import { Alert, AlertIcon, AlertText } from '@/components/ui/alert';
 import { FormControl, FormControlLabel, FormControlLabelText, FormControlError, FormControlErrorIcon, FormControlErrorText } from '@/components/ui/form-control';
 import { Header } from '@/components/Header';
 import { Eye, EyeOff, AlertCircle, MoonStar, KeyRound, Trash2 } from 'lucide-react-native';
-import type { SettingsPasswordErrors } from './settingsUtils';
+import { theme } from '@/constants/theme';
+import type { SettingsPasswordErrors } from '@/lib/settingsUtils';
 
 export interface SettingsScreenViewProps {
   darkTheme: boolean;
@@ -73,11 +74,11 @@ export function SettingsScreenView({
             <HStack className="items-center justify-between">
               <HStack space="sm" className="items-center flex-1">
                 <Box className="rounded-full bg-primary-100 p-2">
-                  <MoonStar size={18} color="#f49d25" />
+                  <MoonStar size={18} color={theme.primary} />
                 </Box>
-                <VStack className="flex-1">
-                  <Text className="text-typography-900 font-semibold">Thème sombre</Text>
-                  <Text className="text-typography-500 text-sm">Passez l’application en mode sombre.</Text>
+                <VStack className="flex-1 min-w-0">
+                  <Text className="text-typography-900 font-semibold break-words">Thème sombre</Text>
+                  <Text className="text-typography-500 text-sm break-words">Passez l’application en mode sombre.</Text>
                 </VStack>
               </HStack>
               <Switch value={darkTheme} onValueChange={onToggleDarkTheme} />
@@ -88,11 +89,11 @@ export function SettingsScreenView({
             <VStack space="md">
               <HStack space="sm" className="items-center">
                 <Box className="rounded-full bg-primary-100 p-2">
-                  <KeyRound size={18} color="#f49d25" />
+                  <KeyRound size={18} color={theme.primary} />
                 </Box>
-                <VStack>
-                  <Heading size="md" className="text-typography-900">Changer le mot de passe</Heading>
-                  <Text className="text-typography-500 text-sm">Renseignez votre mot de passe actuel et choisissez un nouveau mot de passe.</Text>
+                <VStack className="flex-1 min-w-0">
+                  <Heading size="md" className="text-typography-900 break-words">Changer le mot de passe</Heading>
+                  <Text className="text-typography-500 text-sm break-words">Renseignez votre mot de passe actuel et choisissez un nouveau mot de passe.</Text>
                 </VStack>
               </HStack>
 
@@ -187,11 +188,11 @@ export function SettingsScreenView({
             <VStack space="md">
               <HStack space="sm" className="items-center">
                 <Box className="rounded-full bg-error-100 p-2">
-                  <Trash2 size={18} color="#ef4444" />
+                  <Trash2 size={18} color={theme.secondary} />
                 </Box>
-                <VStack className="flex-1">
-                  <Heading size="md" className="text-typography-900">Supprimer mon compte</Heading>
-                  <Text className="text-typography-500 text-sm">Cette action est définitive et supprimera vos données associées.</Text>
+                <VStack className="flex-1 min-w-0">
+                  <Heading size="md" className="text-typography-900 break-words">Supprimer mon compte</Heading>
+                  <Text className="text-typography-500 text-sm break-words">Cette action est définitive et supprimera vos données associées.</Text>
                 </VStack>
               </HStack>
 

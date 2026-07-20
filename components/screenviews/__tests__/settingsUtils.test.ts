@@ -1,4 +1,4 @@
-import { validatePasswordChange } from '../settingsUtils';
+import { validatePasswordChange } from '../../../lib/settingsUtils';
 
 describe('validatePasswordChange', () => {
   it('returns errors when required fields are missing', () => {
