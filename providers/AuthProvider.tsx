@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { tokenStore } from '@/lib/tokenStore';
 import { refreshTokens, setUnauthorizedHandler } from '@/lib/apiClient';
+import { clearHistory } from '@/lib/historyStore';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -16,7 +17,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
 
   const signOut = useCallback(async () => {
-    await tokenStore.clearTokens();
+    await Promise.all([tokenStore.clearTokens(), clearHistory()]);
     setStatus('unauthenticated');
   }, []);
 

@@ -13,14 +13,13 @@ import { Icon } from '@/components/ui/icon';
 import { Button, ButtonText, ButtonIcon } from '@/components/ui/button';
 import { Header } from '@/components/Header';
 import { AudioPlayer } from '@/components/AudioPlayer';
-import type { Audioguide } from '@/api/audioguides';
+import { Audioguide } from '@/types/audioguide';
 
 export interface MuseumScreenViewProps {
   image?: string;
   name?: string;
   audioguide?: Audioguide;
   chapters?: Chapter[];
-  chapter?: Chapter;
   chapterIndex?: number;
   onPreviousChapter?: () => void;
   onNextChapter?: () => void;
@@ -35,7 +34,6 @@ export interface Chapter {
   description?: string;
   image_url?: string;
   audio_url?: string;
-  image_search_query?: string;
 }
 
 export function MuseumScreenView({
@@ -43,15 +41,13 @@ export function MuseumScreenView({
   name,
   audioguide,
   chapters = [],
-  chapter,
   chapterIndex = 0,
   onPreviousChapter,
   onNextChapter,
 }: MuseumScreenViewProps) {
 
   const insets = useSafeAreaInsets();
-
-  
+  const currentChapter = chapters[chapterIndex];
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['top']} className="bg-background-0">
@@ -94,24 +90,24 @@ export function MuseumScreenView({
             </VStack>
 
             {/* Chapter */}
-            {chapter ? (
+            {currentChapter ? (
               <VStack space="lg" className="w-full">
                 <HStack space="sm" className="items-center">
                   <Box className="bg-primary-500 h-1 w-8 rounded-full" />
                   <Heading className="text-typography-900" size="lg">
-                    #{chapter.title}
+                    {currentChapter.title}
                   </Heading>
                 </HStack>
 
                 <VStack space="lg" className="w-full">
-                  {chapter.image_url ? (
+                  {currentChapter.image_url ? (
                     <Box className="w-full h-72 rounded-3xl overflow-hidden border border-outline-200/10 shadow-hard-5 bg-background-100">
                       <Image
-                        source={{ uri: chapter.image_url }}
+                        source={{ uri: currentChapter.image_url }}
                         size="none"
                         className="w-full h-full"
                         resizeMode="cover"
-                        alt={chapter.title}
+                        alt={currentChapter.title}
                       />
                     </Box>
                   ) : null}
@@ -124,25 +120,25 @@ export function MuseumScreenView({
                       </Text>
                     </HStack>
 
-                    {chapter.audio_url && chapter.transcript ? (
+                    {currentChapter.audio_url && currentChapter.transcript ? (
                       <AudioPlayer
-                        key={chapter.chapter_number}
-                        source={{ uri: chapter.audio_url }}
-                        chapterLabel={`Chapter ${chapter.chapter_number}: ${chapter.title}`}
-                        transcript={chapter.transcript}
+                        key={currentChapter.chapter_number}
+                        source={{ uri: currentChapter.audio_url }}
+                        chapterLabel={`Chapter ${currentChapter.chapter_number}: ${currentChapter.title}`}
+                        transcript={currentChapter.transcript}
                       />
                     ) : (
                       <>
                         <Text className="text-typography-900 leading-6" size="md">
-                          {chapter.text}
+                          {currentChapter.text}
                         </Text>
 
-                        {chapter.audio_url ? (
+                        {currentChapter.audio_url ? (
                           <Box className="w-full border-t border-outline-200/30 pt-4">
                             <AudioPlayer
-                              key={chapter.chapter_number}
-                              source={{ uri: chapter.audio_url }}
-                              chapterLabel={`Chapter ${chapter.chapter_number}: ${chapter.title}`}
+                              key={currentChapter.chapter_number}
+                              source={{ uri: currentChapter.audio_url }}
+                              chapterLabel={`Chapter ${currentChapter.chapter_number}: ${currentChapter.title}`}
                             />
                           </Box>
                         ) : null}
@@ -155,7 +151,7 @@ export function MuseumScreenView({
           </VStack>
         </ScrollView>
 
-        {chapter && chapters.length > 1 ? (
+        {currentChapter && chapters.length > 1 ? (
           <Box className="border-t border-outline-200/20 bg-background-0 px-4 pt-4 shadow-soft-1" style={{ paddingBottom: insets.bottom ?? 0 }}>
             <HStack className="w-full items-center">
               <Box className="flex-1 flex-row justify-start">

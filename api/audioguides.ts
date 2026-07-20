@@ -1,36 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/apiClient';
 import { queryClient } from '@/lib/queryClient';
-
-export type Audioguide = {
-  id: string;
-  createdAt: string;
-  updatedAt: string;
-  placeId: string;
-  placeName: string;
-  latitude: number;
-  longitude: number;
-  lang: string;
-  userId: string;
-  attributes: {
-    title: string;
-    rating: number;
-    history: string;
-    chapters: {
-      text: string;
-      lines: string[];
-      title: string;
-      audio_url: string;
-      image_url: string;
-      transcript: string;
-      description: string;
-      chapter_number: number;
-      image_search_query: string;
-    }[];
-    main_image_url: string;
-    admission_price: number | null;
-  };
-};
+import type { Audioguide } from '@/types/audioguide';
 
 const KEYS = {
   all: ['audioguides'] as const,

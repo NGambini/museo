@@ -3,33 +3,16 @@ import { View } from 'react-native';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { HomeScreenView, type HistoryItem } from '@/components/screenviews/HomeScreenView';
+import { HomeScreenView } from '@/components/screenviews/HomeScreenView';
 import type { MapPin } from '@/components/map';
 import { MAP_ZOOM, MAP_WIDTH, MAP_HEIGHT, MAP_SCALE, MAX_PINS, computeRadius } from '@/lib/mapUtils';
 import { fetchPlaceSuggestions, fetchPlaceDetails, type PlaceSuggestion } from '@/lib/placesApi';
 import { useGenerateAudioguide } from '@/api/audioguides';
+import { getHistory, type HistoryItem as StoredHistoryItem } from '@/lib/historyStore';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
 const EIFFEL_TOWER = { latitude: 48.8584, longitude: 2.2945 };
-
-const HISTORY_ITEMS: HistoryItem[] = [
-  {
-    title: 'Renaissance Hall Walkthrough',
-    subtitle: 'Completed 2 days ago • 45 mins',
-    image: 'https://www.figma.com/api/mcp/asset/237dab6b-4282-475d-886d-ff98fcd5e19a',
-  },
-  {
-    title: 'Egyptian Antiquities: Key Statues',
-    subtitle: 'Completed 5 days ago • 1h 20m',
-    image: 'https://www.figma.com/api/mcp/asset/49e7393f-8f41-49ab-af33-2c31224052d7',
-  },
-  {
-    title: 'Main Floor Architecture Tour',
-    subtitle: 'Completed 1 week ago • 30 mins',
-    image: 'https://www.figma.com/api/mcp/asset/ded46baa-f577-4a0d-91f8-52b3649f9527',
-  },
-];
 
 type Coords = { latitude: number; longitude: number };
 
@@ -87,13 +70,29 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [historyItems, setHistoryItems] = useState<StoredHistoryItem[]>([]);
   const searchQueryRef = useRef('');
   const suppressNextSearchRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
+      let active = true;
+
       setSearchQuery('');
       setSuggestions([]);
+
+      const loadHistory = async () => {
+        const storedHistory = await getHistory().catch(() => []);
+        if (active) {
+          setHistoryItems(storedHistory);
+        }
+      };
+
+      loadHistory();
+
+      return () => {
+        active = false;
+      };
     }, [])
   );
 
@@ -118,6 +117,13 @@ export default function HomeScreen() {
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timeout);
   }, [searchQuery]);
+
+  useEffect(() => {
+    (async () => {
+      const storedHistory = await getHistory().catch(() => []);
+      setHistoryItems(storedHistory);
+    })();
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -170,6 +176,13 @@ export default function HomeScreen() {
     });
   };
 
+  const handleTapHistoryItem = (placeId: string) => {
+    router.push({
+      pathname: '/MuseumScreen',
+      params: { id: placeId },
+    });
+  };
+
   const handleSearchQueryChange = (text: string) => {
     searchQueryRef.current = text.trim();
     setSearchQuery(text);
@@ -203,13 +216,12 @@ export default function HomeScreen() {
       mapUrl={mapUrl}
       mapCenter={mapCenter}
       mapPins={mapPins}
-      historyItems={HISTORY_ITEMS}
+      historyItems={historyItems}
       selectedPin={selectedPin}
       tooltipPos={tooltipPos}
       onPinSelect={handlePinSelect}
       onPinPress={handlePinPress}
-      onDismiss={dismissTooltip}
-      searchQuery={searchQuery}
+      onDismiss={dismissTooltip}      onTapHistoryItem={handleTapHistoryItem}      searchQuery={searchQuery}
       onSearchQueryChange={handleSearchQueryChange}
       suggestions={suggestions}
       isSearching={isSearching}

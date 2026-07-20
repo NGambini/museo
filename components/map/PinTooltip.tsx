@@ -17,10 +17,10 @@ export const TOOLTIP_HEIGHT = TOOLTIP_IMAGE_HEIGHT + TOOLTIP_CONTENT_HEIGHT + TO
 interface PinTooltipProps {
   pin: MapPin;
   pos: { x: number; y: number };
-  onVoir: () => void;
+  onTapSeeButton: () => void;
 }
 
-export function PinTooltip({ pin, pos, onVoir }: PinTooltipProps) {
+export function PinTooltip({ pin, pos, onTapSeeButton }: PinTooltipProps) {
   const left = Math.max(8, Math.min(pos.x - TOOLTIP_WIDTH / 2, SCREEN_WIDTH - TOOLTIP_WIDTH - 8));
   const top = Math.max(8, pos.y - TOOLTIP_HEIGHT - 12);
   const arrowLeft = Math.max(8, Math.min(pos.x - left - TOOLTIP_ARROW, TOOLTIP_WIDTH - TOOLTIP_ARROW * 2 - 8));
@@ -60,7 +60,7 @@ export function PinTooltip({ pin, pos, onVoir }: PinTooltipProps) {
         <Text className="text-typography-900 font-bold" size="sm" numberOfLines={2}>
           {pin.name}
         </Text>
-        <Button size="sm" className="rounded-xl bg-primary-500" onPress={onVoir}>
+        <Button size="sm" className="rounded-xl bg-primary-500" onPress={onTapSeeButton}>
           <ButtonText className="text-white">Voir</ButtonText>
         </Button>
       </VStack>

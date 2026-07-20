@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/apiClient';
 import { tokenStore } from '@/lib/tokenStore';
+import { clearHistory } from '@/lib/historyStore';
 import { useAuth } from '@/providers/AuthProvider';
 
 type AuthTokens = { accessToken: string; refreshToken: string };
@@ -27,7 +28,7 @@ export async function logout(): Promise<void> {
   try {
     await apiFetch('/auth/logout', { method: 'POST' });
   } finally {
-    await tokenStore.clearTokens();
+    await Promise.all([tokenStore.clearTokens(), clearHistory()]);
   }
 }
 

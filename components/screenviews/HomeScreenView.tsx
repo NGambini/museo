@@ -20,9 +20,11 @@ import type { PlaceSuggestion } from '@/lib/placesApi';
 export type { MapPin };
 
 export interface HistoryItem {
+  id: string;
   title: string;
   subtitle: string;
   image: string;
+  visitedAt: string;
 }
 
 export interface HomeScreenViewProps {
@@ -36,6 +38,7 @@ export interface HomeScreenViewProps {
   onPinSelect: (pin: MapPin, coords: { x: number; y: number }) => void;
   onPinPress: (pin: MapPin) => void;
   onDismiss: () => void;
+  onTapHistoryItem: (placeId: string) => void;
   searchQuery: string;
   onSearchQueryChange: (text: string) => void;
   suggestions: PlaceSuggestion[];
@@ -54,6 +57,7 @@ export function HomeScreenView({
   onPinSelect,
   onPinPress,
   onDismiss,
+  onTapHistoryItem,
   searchQuery,
   onSearchQueryChange,
   suggestions,
@@ -122,17 +126,18 @@ export function HomeScreenView({
           />
 
           {/* History */}
-          <Box className="bg-background-50 rounded-3xl p-6">
-            <HStack className="items-center gap-3 mb-6">
-              <Clock size={21} color={theme.primary} />
-              <Text className="text-primary-500" size="md">+Historique</Text>
-            </HStack>
+          {historyItems.length > 0 && (
+            <Box className="bg-background-50 rounded-3xl p-6">
+              <HStack className="items-center gap-3 mb-6">
+                <Clock size={21} color={theme.primary} />
+                <Text className="text-primary-500" size="md">Historique</Text>
+              </HStack>
 
             <VStack>
               {historyItems.map((item, index) => (
                 <Box key={index}>
                   {index > 0 && <Divider orientation="horizontal" />}
-                  <Pressable onPress={onDismiss}>
+                  <Pressable onPress={() => onTapHistoryItem(item.id)}>
                     <HStack className="items-center justify-between py-4">
                       <HStack className="items-center gap-4 flex-1 mr-3">
                         <Image
@@ -149,6 +154,15 @@ export function HomeScreenView({
                           <Text className="text-typography-400 mt-0.5" size="xs">
                             {item.subtitle}
                           </Text>
+                          {item.visitedAt ? (
+                            <Text className="text-typography-400 mt-0.5" size="xs">
+                              {new Date(item.visitedAt).toLocaleDateString('fr-FR', {
+                                weekday: 'short',
+                                day: 'numeric',
+                                month: 'short',
+                              })}
+                            </Text>
+                          ) : null}
                         </VStack>
                       </HStack>
                       <ChevronRight size={16} color={theme.secondary} />
@@ -158,7 +172,7 @@ export function HomeScreenView({
               ))}
             </VStack>
           </Box>
-
+        )}
         </VStack>
       </ScrollView>
 
@@ -169,7 +183,7 @@ export function HomeScreenView({
           <PinTooltip
             pin={selectedPin}
             pos={tooltipPos}
-            onVoir={() => {
+            onTapSeeButton={() => {
               onPinPress(selectedPin);
               onDismiss();
             }}
