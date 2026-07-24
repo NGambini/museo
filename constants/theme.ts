@@ -1,10 +1,10 @@
 /**
- * Fichier central de thème.
- * Modifie ces valeurs hex pour changer les couleurs de toute l'application.
+ * Central theme file.
+ * Update these hex values to change the colors across the entire application.
  */
 export const theme = {
-  /** Couleur principale : boutons, liens, accents, icônes interactives */
+  /** Primary color: buttons, links, accents, interactive icons */
   primary: '#f49d25',
-  /** Couleur secondaire */
+  /** Secondary color */
   secondary: '#6b7280',
 } as const;

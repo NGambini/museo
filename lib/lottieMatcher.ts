@@ -1,16 +1,16 @@
 // ---------------------------------------------------------------------------
-// Association d'un fichier Lottie (assets/lottie) à un musée par similarité
-// cosinus entre embeddings sémantiques.
+// Associate a Lottie file (assets/lottie) with a museum using cosine
+// similarity between semantic embeddings.
 //
-// Les embeddings sont précalculés hors-ligne avec un modèle transformer
-// (voir scripts/generate-lottie-embeddings.mjs, via @huggingface/transformers)
-// et stockés dans assets/data/lottieEmbeddings.json : un vecteur par
-// catégorie d'animation, et un vecteur par mot-clé français reconnu.
+// The embeddings are precomputed offline with a transformer model
+// (see scripts/generate-lottie-embeddings.mjs, via @huggingface/transformers)
+// and stored in assets/data/lottieEmbeddings.json: one vector per animation
+// category and one vector per recognized French keyword.
 //
-// Au runtime, aucune librairie ML n'est nécessaire : on repère les mots-clés
-// présents dans le nom du musée, on moyenne leurs embeddings pour obtenir un
-// vecteur représentant ce nom, puis on le compare par cosinus à chaque
-// catégorie pour trouver la plus proche.
+// At runtime, no ML library is needed: we detect the keywords present in the
+// museum name, average their embeddings to build a vector representing the
+// name, and compare it by cosine similarity against each category to find
+// the closest match.
 // ---------------------------------------------------------------------------
 
 import lottieEmbeddingsData from '@/assets/data/lottieEmbeddings.json';
@@ -44,7 +44,7 @@ export function normalizeText(value: string): string {
   return value
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '') // retire les accents (diacritiques après décomposition NFD)
+    .replace(/[̀-ͯ]/g, '') // remove accents (diacritics after NFD decomposition)
     .replace(/[^a-z0-9\s-]/g, ' ')
     .replace(/-/g, ' ')
     .replace(/\s+/g, ' ')
@@ -79,8 +79,8 @@ function meanVector(vectors: number[][]): number[] | null {
 function buildMuseumVector(normalizedName: string, vocabulary: VocabularyEmbedding[]): number[] | null {
   const matchingVectors: number[][] = [];
   for (const { term, embedding } of vocabulary) {
-    // "s" final optionnel pour le pluriel régulier, "x" pour les pluriels
-    // irréguliers courants en français (chateau -> chateaux, bateau -> bateaux).
+    // Optional trailing "s" for regular plurals, "x" for common irregular
+    // French plurals (chateau -> chateaux, bateau -> bateaux).
     const pattern = normalizeText(term)
       .split(/\s+/)
       .map((word) => `${word}(?:s|x)?`)
@@ -97,10 +97,10 @@ function toResult(id: string, score: number): LottieMatchResult {
 }
 
 /**
- * Trouve le fichier Lottie le plus proche d'un musée à partir de son nom
- * (en français) : les mots-clés reconnus dans le nom sont moyennés en un
- * vecteur, comparé par similarité cosinus à chaque catégorie d'animation.
- * Retombe sur une animation par défaut si aucun mot-clé n'est reconnu.
+ * Find the Lottie file closest to a museum based on its name
+ * (in French): the recognized keywords in the name are averaged into a
+ * vector and compared by cosine similarity with each animation category.
+ * Falls back to a default animation if no keyword is recognized.
  */
 export function findLottieForMuseum(
   museumName: string,

@@ -7,6 +7,22 @@ import { theme } from '@/constants/theme';
 // Helpers
 // ---------------------------------------------------------------------------
 
+const SHADE_KEYS = ['0', '50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'] as const;
+const SHADE_DEFINITIONS = [
+  { shade: '0', amount: 0.97, target: 'white' as const },
+  { shade: '50', amount: 0.92, target: 'white' as const },
+  { shade: '100', amount: 0.85, target: 'white' as const },
+  { shade: '200', amount: 0.70, target: 'white' as const },
+  { shade: '300', amount: 0.50, target: 'white' as const },
+  { shade: '400', amount: 0.25, target: 'white' as const },
+  { shade: '500', amount: 0, target: 'white' as const },
+  { shade: '600', amount: 0.15, target: 'black' as const },
+  { shade: '700', amount: 0.30, target: 'black' as const },
+  { shade: '800', amount: 0.50, target: 'black' as const },
+  { shade: '900', amount: 0.65, target: 'black' as const },
+  { shade: '950', amount: 0.75, target: 'black' as const },
+] as const;
+
 function hexToRgb(hex: string): [number, number, number] {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -14,7 +30,7 @@ function hexToRgb(hex: string): [number, number, number] {
   return [r, g, b];
 }
 
-/** Mélange deux couleurs RGB. Retourne une chaîne 'R G B' pour nativewind vars(). */
+/** Mix two RGB colors and return an 'R G B' string for nativewind vars(). */
 function mix(
   a: [number, number, number],
   b: [number, number, number],
@@ -28,70 +44,50 @@ function mix(
 }
 
 /**
- * Génère une palette de 12 teintes (0 → 950) depuis une couleur hex.
- * Convention Gluestack : en light mode, 0 = plus clair, 950 = plus foncé.
+ * Generate a 12-shade palette (0 → 950) from a hex color.
+ * Gluestack convention: in light mode, 0 = lightest, 950 = darkest.
  */
 function buildLightPalette(hex: string) {
   const c = hexToRgb(hex);
   const white: [number, number, number] = [255, 255, 255];
   const black: [number, number, number] = [0, 0, 0];
-  return {
-    '0':   mix(c, white, 0.97),
-    '50':  mix(c, white, 0.92),
-    '100': mix(c, white, 0.85),
-    '200': mix(c, white, 0.70),
-    '300': mix(c, white, 0.50),
-    '400': mix(c, white, 0.25),
-    '500': mix(c, white, 0),     // couleur de base
-    '600': mix(c, black, 0.15),
-    '700': mix(c, black, 0.30),
-    '800': mix(c, black, 0.50),
-    '900': mix(c, black, 0.65),
-    '950': mix(c, black, 0.75),
-  };
+  const palette: Record<string, string> = {};
+
+  for (const definition of SHADE_DEFINITIONS) {
+    const target = definition.target === 'black' ? black : white;
+    palette[definition.shade] = mix(c, target, definition.amount);
+  }
+
+  return palette;
 }
 
 /**
- * En dark mode, Gluestack inverse l'échelle (0 = plus foncé, 950 = plus clair).
+ * In dark mode, Gluestack reverses the scale (0 = darkest, 950 = lightest).
  */
-function buildDarkPalette(
-  lightPalette: ReturnType<typeof buildLightPalette>,
-) {
-  return {
-    '0':   lightPalette['950'],
-    '50':  lightPalette['900'],
-    '100': lightPalette['800'],
-    '200': lightPalette['700'],
-    '300': lightPalette['600'],
-    '400': lightPalette['500'],
-    '500': lightPalette['400'],
-    '600': lightPalette['300'],
-    '700': lightPalette['200'],
-    '800': lightPalette['100'],
-    '900': lightPalette['50'],
-    '950': lightPalette['0'],
-  };
+function buildDarkPalette(lightPalette: ReturnType<typeof buildLightPalette>) {
+  const palette: Record<string, string> = {};
+
+  for (let index = 0; index < SHADE_KEYS.length; index += 1) {
+    const shade = SHADE_KEYS[index];
+    const mirroredShade = SHADE_KEYS[SHADE_KEYS.length - 1 - index];
+    palette[shade] = lightPalette[mirroredShade];
+  }
+
+  return palette;
 }
 
 function paletteToVars(p: ReturnType<typeof buildLightPalette>, prefix: string) {
-  return {
-    [`--color-${prefix}-0`]:   p['0'],
-    [`--color-${prefix}-50`]:  p['50'],
-    [`--color-${prefix}-100`]: p['100'],
-    [`--color-${prefix}-200`]: p['200'],
-    [`--color-${prefix}-300`]: p['300'],
-    [`--color-${prefix}-400`]: p['400'],
-    [`--color-${prefix}-500`]: p['500'],
-    [`--color-${prefix}-600`]: p['600'],
-    [`--color-${prefix}-700`]: p['700'],
-    [`--color-${prefix}-800`]: p['800'],
-    [`--color-${prefix}-900`]: p['900'],
-    [`--color-${prefix}-950`]: p['950'],
-  };
+  const vars: Record<string, string> = {};
+
+  for (const shade of SHADE_KEYS) {
+    vars[`--color-${prefix}-${shade}`] = p[shade];
+  }
+
+  return vars;
 }
 
 // ---------------------------------------------------------------------------
-// Calcul des palettes (effectué une seule fois au chargement du module)
+// Palette calculation (performed once when the module is loaded)
 // ---------------------------------------------------------------------------
 
 const primaryLight = buildLightPalette(theme.primary);

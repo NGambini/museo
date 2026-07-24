@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
-// Metro doit pouvoir analyser statiquement les require() des assets Lottie :
-// un require dynamique avec une variable ne fonctionne pas. On passe donc
-// par cette table de correspondance id -> module, utilisée avec l'id retourné
-// par findLottieForMuseum (lib/lottieMatcher.ts).
+// Metro needs to statically analyze Lottie asset require() calls:
+// a dynamic require with a variable does not work. We therefore use this
+// id -> module mapping table, which is used with the id returned by
+// findLottieForMuseum (lib/lottieMatcher.ts).
 // ---------------------------------------------------------------------------
 
 import type { AnimationObject } from 'lottie-react-native';

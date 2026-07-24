@@ -30,9 +30,28 @@ export async function getHistory(): Promise<HistoryItem[]> {
 
 export async function addHistoryItem(item: HistoryItem): Promise<HistoryItem[]> {
   const history = await getHistory();
-  const nextItems = [item, ...history.filter((existing) => existing.id !== item.id)].slice(0, MAX_HISTORY_ITEMS);
-  await AsyncStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(nextItems));
-  return nextItems;
+  const existingIndex = history.findIndex((existing) => existing.id === item.id);
+
+  let nextItems: HistoryItem[];
+
+  if (existingIndex >= 0) {
+    // If the item already exists in history, move the existing entry to the top.
+    // Do not add a duplicate. Keep the original entry and preserve the order of
+    // the remaining items.
+    const existingItem = history[existingIndex];
+    nextItems = [
+      existingItem,
+      ...history.slice(0, existingIndex),
+      ...history.slice(existingIndex + 1),
+    ];
+  } else {
+    // If the item is new, prepend it to the history.
+    nextItems = [item, ...history];
+  }
+
+  const slicedItems = nextItems.slice(0, MAX_HISTORY_ITEMS);
+  await AsyncStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(slicedItems));
+  return slicedItems;
 }
 
 export async function clearHistory(): Promise<void> {
