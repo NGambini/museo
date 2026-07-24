@@ -1,23 +1,23 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { MuseumScreenView } from '@/components/screenviews/MuseumScreenView';
 import { useAudioguide } from '@/api/audioguides';
 import { addHistoryItem } from '@/lib/historyStore';
-import type { Chapter } from '@/components/screenviews/MuseumScreenView';
 
 export default function MuseumScreen() {
-  const { id, image, name } = useLocalSearchParams<{ id: string; image?: string; name?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { data: audioguide } = useAudioguide(id);
   const [chapterIndex, setChapterIndex] = useState(0);
 
-  const chapters = useMemo(() => (audioguide?.attributes?.chapters ?? []) as Chapter[], [audioguide]);
+  const museumImage = audioguide?.attributes?.main_image_url;
+  const museumName = audioguide?.attributes?.title ?? audioguide?.placeName;
 
   useEffect(() => {
     if (!audioguide) return;
 
-    const imageUrl = image ?? audioguide.attributes.main_image_url ?? '';
-    const title = audioguide.attributes.title || audioguide.placeName || name || 'Audioguide';
-    const subtitle = name ? `Visité: ${name}` : audioguide.placeName ? `Visité: ${audioguide.placeName}` : 'Audioguide récent';
+    const imageUrl = audioguide.attributes.main_image_url;
+    const title = audioguide.attributes.title;
+    const subtitle = `Visité: ${audioguide.placeName}`;
 
     addHistoryItem({
       id: audioguide.id,
@@ -26,22 +26,39 @@ export default function MuseumScreen() {
       image: imageUrl,
       visitedAt: new Date().toISOString(),
     }).catch(() => undefined);
-  }, [audioguide, image, name]);
+  }, [audioguide]);
 
   const handlePreviousChapter = () => {
-    setChapterIndex((currentIndex) => Math.max(0, currentIndex - 1));
+    // If we are already on the first chapter, do nothing.
+    if (chapterIndex === 0) {
+      return;
+    }
+
+    // Otherwise, go to the previous chapter.
+    setChapterIndex(chapterIndex - 1);
   };
 
   const handleNextChapter = () => {
-    setChapterIndex((currentIndex) => Math.min(chapters.length - 1, currentIndex + 1));
+    const chapterCount = audioguide?.attributes?.chapters?.length ?? 0;
+
+    // If there are no chapters, do nothing.
+    if (chapterCount === 0) {
+      return;
+    }
+
+    // If we are already on the last chapter, do nothing.
+    if (chapterIndex >= chapterCount - 1) {
+      return;
+    }
+
+    setChapterIndex(chapterIndex + 1);
   };
 
   return (
     <MuseumScreenView
-      image={image}
-      name={name}
+      image={museumImage}
+      name={museumName}
       audioguide={audioguide}
-      chapters={chapters}
       chapterIndex={chapterIndex}
       onPreviousChapter={handlePreviousChapter}
       onNextChapter={handleNextChapter}

@@ -1,5 +1,5 @@
-import { Pause, Play } from 'lucide-react-native';
-import { useRef } from 'react';
+import { Pause, Play, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { useRef, useState } from 'react';
 import { GestureResponderEvent, StyleSheet, TouchableOpacity } from 'react-native';
 import { AVPlaybackSource } from 'expo-av';
 import { Karaoke } from 'react-native-transcript-karaoke';
@@ -31,6 +31,8 @@ export function AudioPlayer({ source, chapterLabel, transcript }: AudioPlayerPro
     if (durationMillis === 0) return;
     seekTo(Math.min(1, Math.max(0, seekToMillis / durationMillis)));
   }
+
+  const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
 
   return (
     <Box className="bg-background-50 border border-outline-100 rounded-xl p-[17px]">
@@ -80,14 +82,33 @@ export function AudioPlayer({ source, chapterLabel, transcript }: AudioPlayerPro
 
       {transcript ? (
         <Box className="w-full border-t border-outline-100 mt-4 pt-4">
-          <Karaoke
-            transcript={transcript}
-            progress={positionMillis}
-            progressType="milliseconds"
-            style={styles.transcriptLine}
-            activeStyle={styles.transcriptLineActive}
-            onSeekTo={handleKaraokeSeek}
-          />
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setIsTranscriptOpen((prev) => !prev)}
+            className="flex-row items-center justify-between"
+          >
+            <Text size="sm" className="font-semibold text-typography-900">
+              {isTranscriptOpen ? 'Masquer le transcript' : 'Afficher le transcript'}
+            </Text>
+            <Icon
+              as={isTranscriptOpen ? ChevronUp : ChevronDown}
+              size="sm"
+              className="text-typography-600"
+            />
+          </TouchableOpacity>
+
+          {isTranscriptOpen ? (
+            <Box className="mt-4">
+              <Karaoke
+                transcript={transcript}
+                progress={positionMillis}
+                progressType="milliseconds"
+                style={styles.transcriptLine}
+                activeStyle={styles.transcriptLineActive}
+                onSeekTo={handleKaraokeSeek}
+              />
+            </Box>
+          ) : null}
         </Box>
       ) : null}
     </Box>

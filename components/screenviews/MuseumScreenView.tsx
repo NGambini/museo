@@ -13,38 +13,26 @@ import { Icon } from '@/components/ui/icon';
 import { Button, ButtonText, ButtonIcon } from '@/components/ui/button';
 import { Header } from '@/components/Header';
 import { AudioPlayer } from '@/components/AudioPlayer';
-import { Audioguide } from '@/types/audioguide';
+import type { Audioguide, AudioguideChapter } from '@/types/audioguide';
 
 export interface MuseumScreenViewProps {
   image?: string;
   name?: string;
   audioguide?: Audioguide;
-  chapters?: Chapter[];
   chapterIndex?: number;
   onPreviousChapter?: () => void;
   onNextChapter?: () => void;
-}
-
-export interface Chapter {
-  chapter_number: number;
-  title: string;
-  text: string;
-  lines?: string[];
-  transcript?: string;
-  description?: string;
-  image_url?: string;
-  audio_url?: string;
 }
 
 export function MuseumScreenView({
   image,
   name,
   audioguide,
-  chapters = [],
   chapterIndex = 0,
   onPreviousChapter,
   onNextChapter,
 }: MuseumScreenViewProps) {
+  const chapters = audioguide?.attributes?.chapters ?? [];
 
   const insets = useSafeAreaInsets();
   const currentChapter = chapters[chapterIndex];
@@ -120,7 +108,7 @@ export function MuseumScreenView({
                       </Text>
                     </HStack>
 
-                    {currentChapter.audio_url && currentChapter.transcript ? (
+                    {currentChapter.audio_url ? (
                       <AudioPlayer
                         key={currentChapter.chapter_number}
                         source={{ uri: currentChapter.audio_url }}
@@ -128,21 +116,9 @@ export function MuseumScreenView({
                         transcript={currentChapter.transcript}
                       />
                     ) : (
-                      <>
-                        <Text className="text-typography-900 leading-6" size="md">
-                          {currentChapter.text}
-                        </Text>
-
-                        {currentChapter.audio_url ? (
-                          <Box className="w-full border-t border-outline-200/30 pt-4">
-                            <AudioPlayer
-                              key={currentChapter.chapter_number}
-                              source={{ uri: currentChapter.audio_url }}
-                              chapterLabel={`Chapter ${currentChapter.chapter_number}: ${currentChapter.title}`}
-                            />
-                          </Box>
-                        ) : null}
-                      </>
+                      <Text className="text-typography-900 leading-6" size="md">
+                        {currentChapter.text}
+                      </Text>
                     )}
                   </VStack>
                 </VStack>

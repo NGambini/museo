@@ -4,11 +4,12 @@ import { useMutationState } from '@tanstack/react-query';
 import { LottieTransitionScreenView } from '@/components/screenviews/LottieTransitionScreenView';
 import { findLottieForMuseum } from '@/lib/lottieMatcher';
 import { getLottieAsset } from '@/lib/lottieAssets';
-import { GENERATE_AUDIOGUIDE_MUTATION_KEY, type Audioguide } from '@/api/audioguides';
+import { GENERATE_AUDIOGUIDE_MUTATION_KEY } from '@/api/audioguides';
+import { Audioguide } from '@/types/audioguide';
 
 export default function LottieTransitionScreen() {
   const router = useRouter();
-  const { placeId, image, name } = useLocalSearchParams<{ placeId: string; image?: string; name: string }>();
+  const { name } = useLocalSearchParams<{ name: string }>();
 
   const match = findLottieForMuseum(name ?? '');
   const lottieSource = getLottieAsset(match.id);
@@ -21,9 +22,9 @@ export default function LottieTransitionScreen() {
   useEffect(() => {
     if (latest?.status === 'success') {
       const audioguide = latest.data as Audioguide;
-      router.replace({ pathname: '/MuseumScreen', params: { id: audioguide.id, image: image ?? '', name } });
+      router.replace({ pathname: '/MuseumScreen', params: { id: audioguide.id } });
     }
-  }, [latest, router, image, name]);
+  }, [latest, router, name]);
 
   return (
     <LottieTransitionScreenView

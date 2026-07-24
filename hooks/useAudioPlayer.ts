@@ -123,6 +123,10 @@ export function useAudioPlayer(source: AVPlaybackSource): AudioPlayerState {
     [durationMs]
   );
 
+  useEffect(() => {
+    ensureLoaded(onStatus).catch(() => undefined);
+  }, [ensureLoaded, onStatus]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
