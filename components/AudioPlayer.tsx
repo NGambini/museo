@@ -144,10 +144,12 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 4,
     fontWeight: '600',
+    fontFamily: 'KGNeatlyPrinted',
   },
   transcriptLineActive: {
     color: theme.primary,
     opacity: 1,
     fontWeight: '600',
+    fontFamily: 'KGNeatlyPrinted',
   },
 });

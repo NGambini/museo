@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Keyboard, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView } from '@/components/ui/scroll-view';
 import { VStack } from '@/components/ui/vstack';
@@ -65,31 +65,39 @@ export function HomeScreenView({
   onSelectSuggestion,
 }: HomeScreenViewProps) {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
+
+  const dismissSearch = () => {
+    Keyboard.dismiss();
+    searchInputRef.current?.blur();
+  };
 
   return (
     <SafeAreaView style={{ flex: 1 }} className="bg-background-0">
       <Header isHome />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 0, flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-        <VStack space="xl" className="px-4 pt-4 flex-1 justify-between">
+      <Pressable onPress={dismissSearch} className="flex-1">
+        <ScrollView contentContainerStyle={{ paddingBottom: 0, flexGrow: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <VStack space="xl" className="px-4 pt-4 flex-1 justify-between">
 
-          {/* Search bar */}
-          <VStack className="relative" style={{ zIndex: 10 }}>
-            <Input
-              variant="rounded"
-              size="lg"
-              className={`mt-4 bg-background-50 border-transparent ${
-                isSearchFocused ? 'shadow-inner shadow-primary-500/20' : 'shadow-sm'
-              }`}
-            >
-              <InputField
-                placeholder="Find a place"
-                value={searchQuery}
-                onChangeText={onSearchQueryChange}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setIsSearchFocused(false)}
-                className={isSearchFocused ? 'text-primary-500/70' : ''}
-              />
+            {/* Search bar */}
+            <VStack className="relative" style={{ zIndex: 10 }}>
+              <Input
+                variant="rounded"
+                size="lg"
+                className={`mt-4 bg-background-50 border-transparent data-[focus=true]:border-transparent data-[focus=true]:web:ring-0 ${
+                  isSearchFocused ? 'shadow-inner shadow-primary-500/20' : 'shadow-sm'
+                }`}
+              >
+                <InputField
+                  ref={searchInputRef as React.Ref<any>}
+                  placeholder="Find a place"
+                  value={searchQuery}
+                  onChangeText={onSearchQueryChange}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setIsSearchFocused(false)}
+                  className={isSearchFocused ? 'text-primary-500/70 placeholder:text-primary-500/70' : ''}
+                />
               <InputSlot className="pr-4">
                 {isSearching ? (
                   <Spinner size="small" />
@@ -190,6 +198,7 @@ export function HomeScreenView({
         )}
         </VStack>
       </ScrollView>
+      </Pressable>
 
       {/* Dismiss overlay + floating tooltip */}
       {selectedPin && tooltipPos && (
