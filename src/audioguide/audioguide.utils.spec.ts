@@ -9,24 +9,51 @@ import {
   replaceAttributePathsWithUrls,
   isRetryableGeminiError,
   retryWithBackoff,
+  buildChapterSsml,
+  buildTranscript,
 } from './audioguide.utils';
 import { GeminiResult, PlaceDetails } from './audioguide.types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const makeValidGeminiResult = (overrides: Partial<GeminiResult> = {}): GeminiResult => ({
+const makeValidGeminiResult = (
+  overrides: Partial<GeminiResult> = {},
+): GeminiResult => ({
   title: 'Tour Eiffel pour les enfants',
   history: 'La Tour Eiffel a été construite en 1889.',
   admission_price: '15€',
   chapters: [
-    { chapter_number: 1, title: 'Ch1', description: 'D1', text: 'T1', image_search_query: 'q1' },
-    { chapter_number: 2, title: 'Ch2', description: 'D2', text: 'T2', image_search_query: 'q2' },
-    { chapter_number: 3, title: 'Ch3', description: 'D3', text: 'T3', image_search_query: 'q3' },
+    {
+      chapter_number: 1,
+      title: 'Ch1',
+      description: 'D1',
+      lines: ['T1'],
+      text: 'T1',
+      image_search_query: 'q1',
+    },
+    {
+      chapter_number: 2,
+      title: 'Ch2',
+      description: 'D2',
+      lines: ['T2'],
+      text: 'T2',
+      image_search_query: 'q2',
+    },
+    {
+      chapter_number: 3,
+      title: 'Ch3',
+      description: 'D3',
+      lines: ['T3'],
+      text: 'T3',
+      image_search_query: 'q3',
+    },
   ],
   ...overrides,
 });
 
-const makePlaceDetails = (overrides: Partial<PlaceDetails> = {}): PlaceDetails => ({
+const makePlaceDetails = (
+  overrides: Partial<PlaceDetails> = {},
+): PlaceDetails => ({
   placeName: 'Tour Eiffel',
   latitude: 48.8584,
   longitude: 2.2945,
@@ -39,7 +66,9 @@ const makePlaceDetails = (overrides: Partial<PlaceDetails> = {}): PlaceDetails =
 
 describe('buildMainImagePath', () => {
   it('returns the correct GCS path', () => {
-    expect(buildMainImagePath('place-123', 'fr')).toBe('place-123/fr/pictures/main.jpg');
+    expect(buildMainImagePath('place-123', 'fr')).toBe(
+      'place-123/fr/pictures/main.jpg',
+    );
   });
 });
 
@@ -67,20 +96,34 @@ describe('validateGeminiResult', () => {
   });
 
   it('throws if title is missing', () => {
-    expect(() => validateGeminiResult(makeValidGeminiResult({ title: '' }))).toThrow(
-      'Invalid Gemini response structure',
-    );
+    expect(() =>
+      validateGeminiResult(makeValidGeminiResult({ title: '' })),
+    ).toThrow('Invalid Gemini response structure');
   });
 
   it('throws if history is missing', () => {
-    expect(() => validateGeminiResult(makeValidGeminiResult({ history: '' }))).toThrow(
-      'Invalid Gemini response structure',
-    );
+    expect(() =>
+      validateGeminiResult(makeValidGeminiResult({ history: '' })),
+    ).toThrow('Invalid Gemini response structure');
   });
 
   it('throws if chapters count is below 3', () => {
     expect(() =>
-      validateGeminiResult(makeValidGeminiResult({ chapters: makeValidGeminiResult().chapters.slice(0, 2) })),
+      validateGeminiResult(
+        makeValidGeminiResult({
+          chapters: makeValidGeminiResult().chapters.slice(0, 2),
+        }),
+      ),
+    ).toThrow('Invalid Gemini response structure');
+  });
+
+  it('throws if a chapter has no lines', () => {
+    const withoutLines = makeValidGeminiResult().chapters.map((c) => ({
+      ...c,
+      lines: [],
+    }));
+    expect(() =>
+      validateGeminiResult(makeValidGeminiResult({ chapters: withoutLines })),
     ).toThrow('Invalid Gemini response structure');
   });
 
@@ -89,12 +132,13 @@ describe('validateGeminiResult', () => {
       chapter_number: i + 1,
       title: `Ch${i + 1}`,
       description: 'D',
+      lines: ['T'],
       text: 'T',
       image_search_query: 'q',
     }));
-    expect(() => validateGeminiResult(makeValidGeminiResult({ chapters: tooMany }))).toThrow(
-      'Invalid Gemini response structure',
-    );
+    expect(() =>
+      validateGeminiResult(makeValidGeminiResult({ chapters: tooMany })),
+    ).toThrow('Invalid Gemini response structure');
   });
 });
 
@@ -106,9 +150,9 @@ describe('parseGeminiText', () => {
   });
 
   it('throws if the parsed structure is invalid', () => {
-    expect(() => parseGeminiText(JSON.stringify({ title: '', chapters: [] }))).toThrow(
-      'Invalid Gemini response structure',
-    );
+    expect(() =>
+      parseGeminiText(JSON.stringify({ title: '', chapters: [] })),
+    ).toThrow('Invalid Gemini response structure');
   });
 
   it('returns the parsed GeminiResult for valid input', () => {
@@ -116,6 +160,62 @@ describe('parseGeminiText', () => {
     const result = parseGeminiText(JSON.stringify(valid));
     expect(result.title).toBe(valid.title);
     expect(result.chapters).toHaveLength(3);
+  });
+
+  it('derives chapter.text by joining chapter.lines', () => {
+    const valid = makeValidGeminiResult({
+      chapters: [
+        {
+          chapter_number: 1,
+          title: 'Ch1',
+          description: 'D1',
+          lines: ['Première ligne.', 'Deuxième ligne.'],
+          text: 'ignored, recomputed from lines',
+          image_search_query: 'q1',
+        },
+        ...makeValidGeminiResult().chapters.slice(1),
+      ],
+    });
+    const result = parseGeminiText(JSON.stringify(valid));
+    expect(result.chapters[0].text).toBe('Première ligne. Deuxième ligne.');
+  });
+});
+
+// ── buildChapterSsml ───────────────────────────────────────────────────────────
+
+describe('buildChapterSsml', () => {
+  it('wraps each line in a mark and joins them inside <speak>', () => {
+    const ssml = buildChapterSsml(['Bonjour.', 'Comment ça va ?']);
+    expect(ssml).toBe(
+      '<speak><mark name="s0"/>Bonjour. <mark name="s1"/>Comment ça va ?</speak>',
+    );
+  });
+
+  it('escapes XML special characters', () => {
+    const ssml = buildChapterSsml(['Tom & Jerry <3']);
+    expect(ssml).toBe('<speak><mark name="s0"/>Tom &amp; Jerry &lt;3</speak>');
+  });
+});
+
+// ── buildTranscript ────────────────────────────────────────────────────────────
+
+describe('buildTranscript', () => {
+  it('pairs each line with its timepoint as [HH:MM:SS] line', () => {
+    const transcript = buildTranscript(
+      ['Première ligne.', 'Deuxième ligne.'],
+      [
+        { markName: 's0', timeSeconds: 3 },
+        { markName: 's1', timeSeconds: 67 },
+      ],
+    );
+    expect(transcript).toBe(
+      '[00:00:03] Première ligne.\n[00:01:07] Deuxième ligne.',
+    );
+  });
+
+  it('defaults to 00:00:00 when a line has no matching timepoint', () => {
+    const transcript = buildTranscript(['Seule ligne.'], []);
+    expect(transcript).toBe('[00:00:00] Seule ligne.');
   });
 });
 
@@ -133,9 +233,9 @@ describe('parsePlacesApiResponse', () => {
   };
 
   it('throws if status is not OK', () => {
-    expect(() => parsePlacesApiResponse({ ...baseData, status: 'ZERO_RESULTS' })).toThrow(
-      'Google Places API returned status: ZERO_RESULTS',
-    );
+    expect(() =>
+      parsePlacesApiResponse({ ...baseData, status: 'ZERO_RESULTS' }),
+    ).toThrow('Google Places API returned status: ZERO_RESULTS');
   });
 
   it('maps placeName, latitude, longitude correctly', () => {
@@ -151,7 +251,10 @@ describe('parsePlacesApiResponse', () => {
   });
 
   it('defaults rating to null if absent', () => {
-    const data = { ...baseData, result: { ...baseData.result, rating: undefined } };
+    const data = {
+      ...baseData,
+      result: { ...baseData.result, rating: undefined },
+    };
     const result = parsePlacesApiResponse(data);
     expect(result.rating).toBeNull();
   });
@@ -203,11 +306,16 @@ describe('replaceAttributePathsWithUrls', () => {
       { main_image_url: 'place/fr/pictures/main.jpg' },
       sign,
     );
-    expect(attrs.main_image_url).toBe('https://signed/place/fr/pictures/main.jpg');
+    expect(attrs.main_image_url).toBe(
+      'https://signed/place/fr/pictures/main.jpg',
+    );
   });
 
   it('leaves main_image_url untouched if it is not a string', async () => {
-    const attrs = await replaceAttributePathsWithUrls({ main_image_url: null }, sign);
+    const attrs = await replaceAttributePathsWithUrls(
+      { main_image_url: null },
+      sign,
+    );
     expect(attrs.main_image_url).toBeNull();
   });
 
@@ -225,8 +333,12 @@ describe('replaceAttributePathsWithUrls', () => {
       sign,
     );
     const chapter = (attrs.chapters as any[])[0];
-    expect(chapter.image_url).toBe('https://signed/place/fr/pictures/chapter_1.jpg');
-    expect(chapter.audio_url).toBe('https://signed/place/fr/tracks/chapter_1.mp3');
+    expect(chapter.image_url).toBe(
+      'https://signed/place/fr/pictures/chapter_1.jpg',
+    );
+    expect(chapter.audio_url).toBe(
+      'https://signed/place/fr/tracks/chapter_1.mp3',
+    );
   });
 
   it('leaves chapter fields untouched if they are not strings', async () => {

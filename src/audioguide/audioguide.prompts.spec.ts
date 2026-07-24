@@ -24,6 +24,7 @@ describe('buildAudioguidePrompt', () => {
     expect(prompt).toContain('"history"');
     expect(prompt).toContain('"chapters"');
     expect(prompt).toContain('"chapter_number"');
+    expect(prompt).toContain('"lines"');
     expect(prompt).toContain('"image_search_query"');
   });
 

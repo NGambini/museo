@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Storage, Bucket } from '@google-cloud/storage';
-import { TextToSpeechClient } from '@google-cloud/text-to-speech';
+import { v1beta1, protos } from '@google-cloud/text-to-speech';
 import { GoogleGenAI } from '@google/genai';
 import { Audioguide } from './audioguide.entity';
 import { GeminiChapter, GeminiResult, PlaceDetails } from './audioguide.types';
@@ -22,19 +22,21 @@ import {
   buildAudioguideAttributes,
   replaceAttributePathsWithUrls,
   retryWithBackoff,
+  buildChapterSsml,
+  buildTranscript,
 } from './audioguide.utils';
 
 @Injectable()
 export class AudioguideService {
   private readonly storage: Storage;
-  private readonly ttsClient: TextToSpeechClient;
+  private readonly ttsClient: v1beta1.TextToSpeechClient;
 
   constructor(
     @InjectRepository(Audioguide)
     private readonly audioguideRepository: Repository<Audioguide>,
   ) {
     this.storage = new Storage({ projectId: process.env.GOOGLE_PROJECT_ID });
-    this.ttsClient = new TextToSpeechClient();
+    this.ttsClient = new v1beta1.TextToSpeechClient();
   }
 
   async findAll(userId: string): Promise<Audioguide[]> {
@@ -337,12 +339,19 @@ export class AudioguideService {
     lang: string,
     bucket: Bucket,
   ): Promise<void> {
+    const ssml = buildChapterSsml(chapter.lines);
+
     const [ttsResponse] = await this.ttsClient.synthesizeSpeech({
-      input: { text: chapter.text },
-      voice: { languageCode: 'fr-FR', name: 'fr-FR-Chirp-HD-F' },
+      input: { ssml },
+      voice: { languageCode: 'fr-FR', name: 'fr-FR-Wavenet-G' },
       audioConfig: {
-        audioEncoding: 'MP3' as unknown as number,
+        audioEncoding:
+          protos.google.cloud.texttospeech.v1beta1.AudioEncoding.MP3,
       },
+      enableTimePointing: [
+        protos.google.cloud.texttospeech.v1beta1.SynthesizeSpeechRequest
+          .TimepointType.SSML_MARK,
+      ],
     });
 
     const path = buildChapterAudioPath(placeId, lang, chapter.chapter_number);
@@ -351,6 +360,10 @@ export class AudioguideService {
 
     // Store the GCS path — signed URL is generated at read time
     chapter.audio_url = path;
+    chapter.transcript = buildTranscript(
+      chapter.lines,
+      ttsResponse.timepoints ?? [],
+    );
     console.log(`Chapter ${chapter.chapter_number} audio uploaded to GCS`);
   }
 

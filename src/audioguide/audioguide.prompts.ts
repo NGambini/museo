@@ -13,10 +13,11 @@ Réponds UNIQUEMENT avec un objet JSON valide respectant exactement cette struct
       "chapter_number": 1,
       "title": "Titre du chapitre",
       "description": "Description courte du chapitre en 1 phrase",
-      "text": "Texte à lire à voix haute, adapté aux enfants de 6-12 ans, fun et éducatif (200-300 mots)",
+      "lines": ["Première ligne à lire à voix haute", "Regroupe les phrases courtes qui s'enchaînent naturellement, sépare les phrases longues sur plusieurs lignes"],
       "image_search_query": "specific english keyword optimized for Wikimedia Commons image search"
     }
   ]
 }
 
-Génère entre 3 et 5 chapitres. Pour admission_price, ne renseigne ce champ que si tu en es certain, sinon mets null.`;
+Génère entre 3 et 5 chapitres. Pour admission_price, ne renseigne ce champ que si tu en es certain, sinon mets null.
+Pour chapters[].lines : découpe le texte de chaque chapitre (200-300 mots au total, adapté aux enfants de 6-12 ans, fun et éducatif) en plusieurs lignes pensées pour un affichage synchronisé type karaoké — chaque élément du tableau est une ligne. Regroupe entre elles les phrases courtes qui s'enchaînent, et sépare une phrase longue en plusieurs lignes si nécessaire.`;

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
@@ -18,9 +17,23 @@ jest.mock('@google-cloud/storage', () => ({
 }));
 
 jest.mock('@google-cloud/text-to-speech', () => ({
-  TextToSpeechClient: jest.fn().mockImplementation(() => ({
-    synthesizeSpeech: jest.fn(),
-  })),
+  v1beta1: {
+    TextToSpeechClient: jest.fn().mockImplementation(() => ({
+      synthesizeSpeech: jest.fn(),
+    })),
+  },
+  protos: {
+    google: {
+      cloud: {
+        texttospeech: {
+          v1beta1: {
+            AudioEncoding: { MP3: 2 },
+            SynthesizeSpeechRequest: { TimepointType: { SSML_MARK: 1 } },
+          },
+        },
+      },
+    },
+  },
 }));
 
 jest.mock('@google/genai', () => ({
