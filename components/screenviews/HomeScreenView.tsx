@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView } from '@/components/ui/scroll-view';
@@ -64,29 +64,39 @@ export function HomeScreenView({
   isSearching,
   onSelectSuggestion,
 }: HomeScreenViewProps) {
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
   return (
     <SafeAreaView style={{ flex: 1 }} className="bg-background-0">
       <Header isHome />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        <VStack space="xl" className="px-4 pt-4">
+      <ScrollView contentContainerStyle={{ paddingBottom: 0, flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+        <VStack space="xl" className="px-4 pt-4 flex-1 justify-between">
 
           {/* Search bar */}
           <VStack className="relative" style={{ zIndex: 10 }}>
-            <Input variant="rounded" size="lg" className="bg-background-50 border-transparent shadow-sm">
-              <InputSlot className="pl-4">
-                <InputIcon as={Search} className="text-typography-400" />
-              </InputSlot>
+            <Input
+              variant="rounded"
+              size="lg"
+              className={`mt-4 bg-background-50 border-transparent ${
+                isSearchFocused ? 'shadow-inner shadow-primary-500/20' : 'shadow-sm'
+              }`}
+            >
               <InputField
                 placeholder="Find a place"
                 value={searchQuery}
                 onChangeText={onSearchQueryChange}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
+                className={isSearchFocused ? 'text-primary-500/70' : ''}
               />
-              {isSearching && (
-                <InputSlot className="pr-4">
+              <InputSlot className="pr-4">
+                {isSearching ? (
                   <Spinner size="small" />
-                </InputSlot>
-              )}
+                ) : (
+                  <InputIcon as={Search} className={isSearchFocused ? 'text-primary-500/70' : 'text-typography-400'} />
+                )}
+              </InputSlot>
             </Input>
 
             {suggestions.length > 0 && (
@@ -116,14 +126,19 @@ export function HomeScreenView({
           </VStack>
 
           {/* Map */}
-          <MapSection
-            mapRef={mapRef}
-            mapUrl={mapUrl}
-            mapCenter={mapCenter}
-            mapPins={mapPins}
-            selectedPinId={selectedPin?.id ?? null}
-            onPinPress={onPinSelect}
-          />
+          <VStack space="md">
+            <Text className="text-primary-500 text-center" size="lg" bold>
+              À proximité
+            </Text>
+            <MapSection
+              mapRef={mapRef}
+              mapUrl={mapUrl}
+              mapCenter={mapCenter}
+              mapPins={mapPins}
+              selectedPinId={selectedPin?.id ?? null}
+              onPinPress={onPinSelect}
+            />
+          </VStack>
 
           {/* History */}
           {historyItems.length > 0 && (

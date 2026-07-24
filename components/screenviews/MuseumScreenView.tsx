@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronRight, FileText } from 'lucide-react-native';
@@ -36,13 +36,29 @@ export function MuseumScreenView({
 
   const insets = useSafeAreaInsets();
   const currentChapter = chapters[chapterIndex];
+  const scrollViewRef = useRef<any>(null);
+
+  const handleTranscriptVisibilityChange = (isOpen: boolean) => {
+    if (!isOpen || !scrollViewRef.current) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    });
+  };
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['top']} className="bg-background-0">
       <Header />
 
       <Box className="flex-1">
-        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          ref={scrollViewRef}
+          className="flex-1"
+          contentContainerStyle={{ paddingBottom: 24 }}
+          showsVerticalScrollIndicator={false}
+        >
           <VStack space="2xl" className="px-4 pt-4">
             {/* Intro block */}
             <VStack space="lg" className="w-full">
@@ -100,20 +116,14 @@ export function MuseumScreenView({
                     </Box>
                   ) : null}
 
-                  <VStack space="md" className="w-full bg-background-50 rounded-3xl p-6">
-                    <HStack space="sm" className="items-center">
-                      <Icon as={FileText} size="sm" className="text-primary-500" />
-                      <Text className="text-primary-500 font-bold uppercase tracking-widest" size="xs">
-                        Transcript
-                      </Text>
-                    </HStack>
-
+                  <VStack space="md" className="w-full bg-background-50 rounded-3xl p-3">
                     {currentChapter.audio_url ? (
                       <AudioPlayer
                         key={currentChapter.chapter_number}
                         source={{ uri: currentChapter.audio_url }}
                         chapterLabel={`Chapter ${currentChapter.chapter_number}: ${currentChapter.title}`}
                         transcript={currentChapter.transcript}
+                        onTranscriptVisibilityChange={handleTranscriptVisibilityChange}
                       />
                     ) : (
                       <Text className="text-typography-900 leading-6" size="md">

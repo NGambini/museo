@@ -25,7 +25,7 @@ export function MapSection({ mapRef, mapUrl, mapCenter, mapPins, selectedPinId, 
   return (
     <Box
       ref={mapRef}
-      className="w-full aspect-[4/3] rounded-3xl shadow-md"
+      className="w-full aspect-[4/3] rounded-3xl shadow-sm"
       onLayout={(e) => {
         const { width, height } = e.nativeEvent.layout;
         setMapSize({ width, height });

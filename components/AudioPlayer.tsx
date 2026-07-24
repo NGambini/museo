@@ -2,6 +2,7 @@ import { Pause, Play, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { GestureResponderEvent, StyleSheet, TouchableOpacity } from 'react-native';
 import { AVPlaybackSource } from 'expo-av';
+import { Motion } from '@legendapp/motion';
 import { Karaoke } from 'react-native-transcript-karaoke';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { Icon } from './ui/icon';
@@ -15,9 +16,10 @@ export type AudioPlayerProps = {
   source: AVPlaybackSource;
   chapterLabel: string;
   transcript?: string;
+  onTranscriptVisibilityChange?: (isOpen: boolean) => void;
 };
 
-export function AudioPlayer({ source, chapterLabel, transcript }: AudioPlayerProps) {
+export function AudioPlayer({ source, chapterLabel, transcript, onTranscriptVisibilityChange }: AudioPlayerProps) {
   const { isPlaying, progress, currentTime, totalTime, positionMillis, durationMillis, toggle, seekTo } =
     useAudioPlayer(source);
   const barWidthRef = useRef(0);
@@ -84,7 +86,11 @@ export function AudioPlayer({ source, chapterLabel, transcript }: AudioPlayerPro
         <Box className="w-full border-t border-outline-100 mt-4 pt-4">
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => setIsTranscriptOpen((prev) => !prev)}
+            onPress={() => {
+              const nextValue = !isTranscriptOpen;
+              setIsTranscriptOpen(nextValue);
+              onTranscriptVisibilityChange?.(nextValue);
+            }}
             className="flex-row items-center justify-between"
           >
             <Text size="sm" className="font-semibold text-typography-900">
@@ -97,18 +103,24 @@ export function AudioPlayer({ source, chapterLabel, transcript }: AudioPlayerPro
             />
           </TouchableOpacity>
 
-          {isTranscriptOpen ? (
-            <Box className="mt-4">
-              <Karaoke
-                transcript={transcript}
-                progress={positionMillis}
-                progressType="milliseconds"
-                style={styles.transcriptLine}
-                activeStyle={styles.transcriptLineActive}
-                onSeekTo={handleKaraokeSeek}
-              />
-            </Box>
-          ) : null}
+          <Motion.View
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: isTranscriptOpen ? 1 : 0, y: isTranscriptOpen ? 0 : 8 }}
+            transition={{ type: 'timing', duration: 220, easing: 'easeOut' }}
+          >
+            {isTranscriptOpen ? (
+              <Box className="mt-4">
+                <Karaoke
+                  transcript={transcript}
+                  progress={positionMillis}
+                  progressType="milliseconds"
+                  style={styles.transcriptLine}
+                  activeStyle={styles.transcriptLineActive}
+                  onSeekTo={handleKaraokeSeek}
+                />
+              </Box>
+            ) : null}
+          </Motion.View>
         </Box>
       ) : null}
     </Box>
@@ -127,12 +139,15 @@ const styles = StyleSheet.create({
   },
   transcriptLine: {
     color: theme.secondary,
+    opacity: 0.6,
     fontSize: 15,
     lineHeight: 24,
     marginBottom: 4,
+    fontWeight: '600',
   },
   transcriptLineActive: {
     color: theme.primary,
+    opacity: 1,
     fontWeight: '600',
   },
 });
