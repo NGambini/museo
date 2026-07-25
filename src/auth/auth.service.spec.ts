@@ -27,6 +27,7 @@ const mockUsersService = {
   findById: jest.fn(),
   create: jest.fn(),
   updateRefreshToken: jest.fn(),
+  updatePassword: jest.fn(),
 };
 
 const mockJwtService = {
@@ -168,6 +169,35 @@ describe('AuthService', () => {
 
       await service.logout('user-uuid');
 
+      expect(mockUsersService.updateRefreshToken).toHaveBeenCalledWith(
+        'user-uuid',
+        null,
+      );
+    });
+  });
+
+  describe('changePassword', () => {
+    it('throws UnauthorizedException if the current password is incorrect', async () => {
+      mockUsersService.findById.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(
+        service.changePassword('user-uuid', 'wrong', 'newPassword123'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('updates the password and clears the refresh token if the current password is correct', async () => {
+      mockUsersService.findById.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      mockUsersService.updatePassword.mockResolvedValue(undefined);
+      mockUsersService.updateRefreshToken.mockResolvedValue(undefined);
+
+      await service.changePassword('user-uuid', 'correct', 'newPassword123');
+
+      expect(mockUsersService.updatePassword).toHaveBeenCalledWith(
+        'user-uuid',
+        expect.any(String), // hashed password
+      );
       expect(mockUsersService.updateRefreshToken).toHaveBeenCalledWith(
         'user-uuid',
         null,

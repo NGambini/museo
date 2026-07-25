@@ -34,4 +34,8 @@ export class UsersService {
   ): Promise<void> {
     await this.usersRepository.update(userId, { refreshToken: hashedToken });
   }
+
+  async updatePassword(userId: string, hashedPassword: string): Promise<void> {
+    await this.usersRepository.update(userId, { password: hashedPassword });
+  }
 }
