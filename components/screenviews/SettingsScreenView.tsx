@@ -77,7 +77,7 @@ export function SettingsScreenView({
                   <MoonStar size={18} color={theme.primary} />
                 </Box>
                 <VStack className="flex-1 min-w-0">
-                  <Text className="text-typography-900 font-semibold break-words">Thème sombre</Text>
+                  <Text className="text-typography-900 font-spaced break-words">Thème sombre</Text>
                   <Text className="text-typography-500 text-sm break-words">Passez l’application en mode sombre.</Text>
                 </VStack>
               </HStack>
@@ -113,7 +113,7 @@ export function SettingsScreenView({
 
               <FormControl isInvalid={!!fieldErrors.currentPassword}>
                 <FormControlLabel>
-                  <FormControlLabelText>Mot de passe actuel</FormControlLabelText>
+                  <FormControlLabelText size="sm">Mot de passe actuel</FormControlLabelText>
                 </FormControlLabel>
                 <Input size="lg">
                   <InputField
@@ -135,7 +135,7 @@ export function SettingsScreenView({
 
               <FormControl isInvalid={!!fieldErrors.newPassword}>
                 <FormControlLabel>
-                  <FormControlLabelText>Nouveau mot de passe</FormControlLabelText>
+                  <FormControlLabelText size="sm">Nouveau mot de passe</FormControlLabelText>
                 </FormControlLabel>
                 <Input size="lg">
                   <InputField
@@ -157,7 +157,7 @@ export function SettingsScreenView({
 
               <FormControl isInvalid={!!fieldErrors.confirmPassword}>
                 <FormControlLabel>
-                  <FormControlLabelText>Confirmer le nouveau mot de passe</FormControlLabelText>
+                  <FormControlLabelText size="sm">Confirmer le nouveau mot de passe</FormControlLabelText>
                 </FormControlLabel>
                 <Input size="lg">
                   <InputField

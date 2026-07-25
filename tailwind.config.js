@@ -174,6 +174,7 @@ module.exports = {
       fontFamily: {
         heading: ['KGNeatlyPrinted'],
         body: ['KGNeatlyPrinted'],
+        spaced: ['KGNeatlyPrintedSpaced'],
         mono: undefined,
         jakarta: ['var(--font-plus-jakarta-sans)'],
         roboto: ['var(--font-roboto)'],

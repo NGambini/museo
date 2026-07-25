@@ -57,7 +57,7 @@ export function PinTooltip({ pin, pos, onTapSeeButton }: PinTooltipProps) {
 
       {/* Content — renders after arrow in JSX, so it paints above it */}
       <VStack className="px-3 pt-2 pb-3 gap-2">
-        <Text className="text-typography-900 font-bold" size="sm" numberOfLines={2}>
+        <Text className="text-typography-900 font-spaced" size="sm" numberOfLines={2}>
           {pin.name}
         </Text>
         <Button size="sm" className="rounded-xl bg-primary-500" onPress={onTapSeeButton}>

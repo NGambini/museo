@@ -153,7 +153,7 @@ export function SignupScreenView({
             Déjà un compte ?
           </Text>
           <Pressable onPress={onNavigateToLogin}>
-            <Text size="sm" className="text-primary-600 font-semibold">
+            <Text size="sm" className="text-primary-600 font-spaced">
               Se connecter
             </Text>
           </Pressable>

@@ -117,7 +117,7 @@ export function LoginScreenView({
             Pas encore de compte ?
           </Text>
           <Pressable onPress={onNavigateToSignup}>
-            <Text size="sm" className="text-primary-600 font-semibold">
+            <Text size="sm" className="text-primary-600 font-spaced">
               S'inscrire
             </Text>
           </Pressable>

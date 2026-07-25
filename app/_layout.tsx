@@ -23,6 +23,7 @@ export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     KGNeatlyPrinted: require('../assets/fonts/KGNeatlyPrinted.ttf'),
+    KGNeatlyPrintedSpaced: require('../assets/fonts/KGNeatlyPrintedSpaced.ttf'),
     ...FontAwesome.font,
   });
 

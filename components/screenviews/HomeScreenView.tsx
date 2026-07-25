@@ -91,7 +91,7 @@ export function HomeScreenView({
               >
                 <InputField
                   ref={searchInputRef as React.Ref<any>}
-                  placeholder="Find a place"
+                  placeholder="Trouver un musée, un lieu culturel..."
                   value={searchQuery}
                   onChangeText={onSearchQueryChange}
                   onFocus={() => setIsSearchFocused(true)}
@@ -153,7 +153,7 @@ export function HomeScreenView({
             <Box className="bg-background-50 rounded-3xl p-6">
               <HStack className="items-center gap-3 mb-6">
                 <Clock size={21} color={theme.primary} />
-                <Text className="text-primary-500" size="md">Historique</Text>
+                <Text className="text-primary-500" size="md" bold>Historique</Text>
               </HStack>
 
             <VStack>
@@ -171,21 +171,12 @@ export function HomeScreenView({
                           alt={item.title}
                         />
                         <VStack className="flex-1">
-                          <Text className="text-typography-900 font-bold" size="sm" numberOfLines={2}>
+                          <Text className="text-typography-900 font-spaced" size="sm" numberOfLines={2}>
                             {item.title}
                           </Text>
                           <Text className="text-typography-400 mt-0.5" size="xs">
                             {item.subtitle}
                           </Text>
-                          {item.visitedAt ? (
-                            <Text className="text-typography-400 mt-0.5" size="xs">
-                              {new Date(item.visitedAt).toLocaleDateString('fr-FR', {
-                                weekday: 'short',
-                                day: 'numeric',
-                                month: 'short',
-                              })}
-                            </Text>
-                          ) : null}
                         </VStack>
                       </HStack>
                       <ChevronRight size={16} color={theme.secondary} />

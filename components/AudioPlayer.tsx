@@ -58,10 +58,10 @@ export function AudioPlayer({ source, chapterLabel, transcript, onTranscriptVisi
         {/* Progress */}
         <VStack className="flex-1" space="xs">
           <HStack className="items-center justify-between">
-            <Text size="xs" className="font-bold text-typography-400 uppercase tracking-widest max-w-[60%]">
+            <Text size="xs" className="font-spaced text-typography-400 uppercase tracking-widest max-w-[60%]">
               {chapterLabel}
             </Text>
-            <Text size="xs" className="font-bold text-typography-400 uppercase tracking-widest">
+            <Text size="xs" className="font-spaced text-typography-400 uppercase tracking-widest">
               {currentTime} / {totalTime}
             </Text>
 
@@ -93,7 +93,7 @@ export function AudioPlayer({ source, chapterLabel, transcript, onTranscriptVisi
             }}
             className="flex-row items-center justify-between"
           >
-            <Text size="sm" className="font-semibold text-typography-900">
+            <Text size="sm" className="font-spaced text-typography-900">
               {isTranscriptOpen ? 'Masquer le transcript' : 'Afficher le transcript'}
             </Text>
             <Icon

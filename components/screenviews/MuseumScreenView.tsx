@@ -75,7 +75,7 @@ export function MuseumScreenView({
               ) : null}
 
               <VStack space="sm" className="w-full">
-                <Text className="text-primary-500 font-bold uppercase tracking-widest" size="xs">
+                <Text className="text-primary-500 font-spaced uppercase tracking-widest" size="xs">
                   Audioguide personnalisé
                 </Text>
 
