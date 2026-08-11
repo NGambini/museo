@@ -30,7 +30,7 @@ export function validateGeminiResult(result: GeminiResult): void {
     !result.history ||
     !Array.isArray(result.chapters) ||
     result.chapters.length < 3 ||
-    result.chapters.length > 5 ||
+    result.chapters.length > 10 ||
     result.chapters.some((c) => !Array.isArray(c.lines) || c.lines.length === 0)
   ) {
     throw new Error('Invalid Gemini response structure');
@@ -38,7 +38,10 @@ export function validateGeminiResult(result: GeminiResult): void {
 }
 
 export function parseGeminiText(text: string): GeminiResult {
-  const result = JSON.parse(text) as GeminiResult;
+  // Sans responseMimeType (incompatible avec le grounding), le modèle entoure
+  // parfois son JSON de balises markdown.
+  const json = text.trim().replace(/^```(?:json)?|```$/g, '');
+  const result = JSON.parse(json) as GeminiResult;
   validateGeminiResult(result);
   return {
     ...result,
@@ -108,7 +111,9 @@ export interface ParsedPlacesData {
   latitude: number;
   longitude: number;
   rating: number | null;
-  photoReference: string | undefined;
+  /** Toutes les photos du lieu : la 1re sert de photo principale, les suivantes
+   * de repli quand Wikimedia ne trouve rien pour un chapitre. */
+  photoReferences: string[];
 }
 
 export function parsePlacesApiResponse(
@@ -122,7 +127,7 @@ export function parsePlacesApiResponse(
     latitude: data.result.geometry.location.lat,
     longitude: data.result.geometry.location.lng,
     rating: data.result.rating ?? null,
-    photoReference: data.result.photos?.[0]?.photo_reference,
+    photoReferences: (data.result.photos ?? []).map((p) => p.photo_reference),
   };
 }
 

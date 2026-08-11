@@ -98,6 +98,7 @@ export class AudioguideService {
       placeId,
       lang,
       bucket,
+      placeDetails.photoReferences,
     );
 
     await this.synthesizeAndUploadAudio(
@@ -149,25 +150,57 @@ export class AudioguideService {
         `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=name,geometry,rating,photos&key=${process.env.GOOGLE_PLACES_API_KEY}`,
       );
       const data = (await res.json()) as PlacesApiRawData;
-      const { placeName, latitude, longitude, rating, photoReference } =
+      const { placeName, latitude, longitude, rating, photoReferences } =
         parsePlacesApiResponse(data);
 
-      console.log(`Google Places OK: ${placeName}`);
+      console.log(
+        `Google Places OK: ${placeName} (${photoReferences.length} photos)`,
+      );
 
       const mainImagePath = await this.uploadMainPhoto(
-        photoReference,
+        photoReferences[0],
         placeId,
         lang,
         bucket,
       );
 
-      return { placeName, latitude, longitude, rating, mainImagePath };
+      return {
+        placeName,
+        latitude,
+        longitude,
+        rating,
+        mainImagePath,
+        photoReferences,
+      };
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       console.error(`Error at Google Places step: ${msg}`, error);
       throw new InternalServerErrorException(
         'An error occurred, please try again later',
       );
+    }
+  }
+
+  private placesPhotoUrl(photoRef: string): string {
+    return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoRef}&key=${process.env.GOOGLE_PLACES_API_KEY}`;
+  }
+
+  /**
+   * Télécharge une image, ou renvoie null si la réponse n'en est pas une —
+   * sans ce contrôle, la page d'erreur HTML de Wikimedia (2 Ko) finissait
+   * uploadée en tant que photo.
+   */
+  private async downloadImage(url: string): Promise<Buffer | null> {
+    try {
+      const res = await fetch(url);
+      const type = res.headers.get('content-type') ?? '';
+      if (!res.ok || !type.startsWith('image/')) {
+        console.log(`Réponse non-image ignorée (${res.status}, ${type})`);
+        return null;
+      }
+      return Buffer.from(await res.arrayBuffer());
+    } catch {
+      return null;
     }
   }
 
@@ -182,11 +215,10 @@ export class AudioguideService {
   ): Promise<string | undefined> {
     if (!photoRef) return undefined;
 
+    const buffer = await this.downloadImage(this.placesPhotoUrl(photoRef));
+    if (!buffer) return undefined;
+
     const path = buildMainImagePath(placeId, lang);
-    const photoRes = await fetch(
-      `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoRef}&key=${process.env.GOOGLE_PLACES_API_KEY}`,
-    );
-    const buffer = Buffer.from(await photoRes.arrayBuffer());
     await bucket.file(path).save(buffer, { contentType: 'image/jpeg' });
 
     console.log('Main photo uploaded to GCS');
@@ -202,14 +234,16 @@ export class AudioguideService {
 
       const generateContent = () =>
         ai.models.generateContent({
-          model: 'gemini-2.5-flash-lite',
+          // Gemini 3+ requis pour le grounding. Pas de responseMimeType ici :
+          // combiné au grounding, l'API répond 200 sans aucun candidat.
+          model: 'gemini-3.5-flash-lite',
           contents: [
             {
               role: 'user',
               parts: [{ text: buildAudioguidePrompt(placeName, lang) }],
             },
           ],
-          config: { responseMimeType: 'application/json' },
+          config: { tools: [{ googleSearch: {} }] },
         });
 
       const result = await retryWithBackoff(generateContent, {
@@ -244,13 +278,26 @@ export class AudioguideService {
     placeId: string,
     lang: string,
     bucket: Bucket,
+    photoReferences: string[],
   ): Promise<void> {
     try {
-      await Promise.all(
-        chapters.map((chapter) =>
-          this.fetchAndUploadOneChapterImage(chapter, placeId, lang, bucket),
-        ),
-      );
+      // En série : tout lancer en parallèle faisait répondre 429 à Wikimedia.
+      for (const [index, chapter] of chapters.entries()) {
+        // On décale de 1 pour ne pas répéter la photo principale, qui est la
+        // première du lot.
+        const fallback =
+          photoReferences.length > 0
+            ? photoReferences[(index + 1) % photoReferences.length]
+            : undefined;
+
+        await this.fetchAndUploadOneChapterImage(
+          chapter,
+          placeId,
+          lang,
+          bucket,
+          fallback,
+        );
+      }
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       console.error(`Error at Wikimedia images step: ${msg}`);
@@ -261,14 +308,15 @@ export class AudioguideService {
   }
 
   /**
-   * Fetches a chapter image from Wikimedia, uploads it to GCS,
-   * and stores the GCS path (not a full URL) on the chapter object.
+   * Cherche une illustration sur Wikimedia et, à défaut, retombe sur une photo
+   * Google Places du lieu — de sorte qu'un chapitre ait toujours une image.
    */
   private async fetchAndUploadOneChapterImage(
     chapter: GeminiChapter,
     placeId: string,
     lang: string,
     bucket: Bucket,
+    fallbackPhotoRef: string | undefined,
   ): Promise<void> {
     try {
       const wikiRes = await fetch(
@@ -279,26 +327,28 @@ export class AudioguideService {
           pages?: Record<string, { imageinfo?: Array<{ thumburl?: string }> }>;
         };
       };
-      const pages = wikiData.query?.pages;
-      const thumbUrl = pages
-        ? (Object.values(pages)[0]?.imageinfo?.[0]?.thumburl ?? null)
-        : null;
+      const thumbUrl =
+        Object.values(wikiData.query?.pages ?? {})[0]?.imageinfo?.[0]
+          ?.thumburl ?? null;
 
-      if (!thumbUrl) {
-        console.log(`No image found for chapter ${chapter.chapter_number}`);
+      const buffer =
+        (thumbUrl ? await this.downloadImage(thumbUrl) : null) ??
+        (fallbackPhotoRef
+          ? await this.downloadImage(this.placesPhotoUrl(fallbackPhotoRef))
+          : null);
+
+      if (!buffer) {
+        console.log(`Aucune image pour le chapitre ${chapter.chapter_number}`);
         return;
       }
 
       const path = buildChapterImagePath(placeId, lang, chapter.chapter_number);
-      const imgBuffer = Buffer.from(
-        await (await fetch(thumbUrl)).arrayBuffer(),
-      );
-      await bucket.file(path).save(imgBuffer, { contentType: 'image/jpeg' });
+      await bucket.file(path).save(buffer, { contentType: 'image/jpeg' });
 
       chapter.image_url = path;
       console.log(`Chapter ${chapter.chapter_number} image uploaded`);
     } catch {
-      console.log(`No image found for chapter ${chapter.chapter_number}`);
+      console.log(`Aucune image pour le chapitre ${chapter.chapter_number}`);
     }
   }
 

@@ -59,6 +59,7 @@ const makePlaceDetails = (
   longitude: 2.2945,
   rating: 4.5,
   mainImagePath: 'place-123/fr/pictures/main.jpg',
+  photoReferences: ['ref123'],
   ...overrides,
 });
 
@@ -127,8 +128,8 @@ describe('validateGeminiResult', () => {
     ).toThrow('Invalid Gemini response structure');
   });
 
-  it('throws if chapters count is above 5', () => {
-    const tooMany = Array.from({ length: 6 }, (_, i) => ({
+  it('throws if chapters count is above 10', () => {
+    const tooMany = Array.from({ length: 11 }, (_, i) => ({
       chapter_number: i + 1,
       title: `Ch${i + 1}`,
       description: 'D',
@@ -259,15 +260,21 @@ describe('parsePlacesApiResponse', () => {
     expect(result.rating).toBeNull();
   });
 
-  it('extracts the first photo reference', () => {
-    const result = parsePlacesApiResponse(baseData);
-    expect(result.photoReference).toBe('ref123');
+  it('extracts every photo reference, in order', () => {
+    const data = {
+      ...baseData,
+      result: {
+        ...baseData.result,
+        photos: [{ photo_reference: 'ref123' }, { photo_reference: 'ref456' }],
+      },
+    };
+    const result = parsePlacesApiResponse(data);
+    expect(result.photoReferences).toEqual(['ref123', 'ref456']);
   });
 
-  it('returns undefined photoReference if no photos', () => {
+  it('returns an empty array if the place has no photos', () => {
     const data = { ...baseData, result: { ...baseData.result, photos: [] } };
-    const result = parsePlacesApiResponse(data);
-    expect(result.photoReference).toBeUndefined();
+    expect(parsePlacesApiResponse(data).photoReferences).toEqual([]);
   });
 });
 

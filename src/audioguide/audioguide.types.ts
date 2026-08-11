@@ -24,4 +24,5 @@ export interface PlaceDetails {
   longitude: number;
   rating: number | null;
   mainImagePath: string | undefined;
+  photoReferences: string[];
 }
