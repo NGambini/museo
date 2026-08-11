@@ -26,10 +26,14 @@ steps:
       - --image=$_IMAGE:$SHORT_SHA
       - --region=$_REGION
       - --platform=managed
+      # Identité d'exécution : c'est ce compte qui a les accès GCS et TTS.
+      # Sans ce flag, Cloud Run prendrait le compte Compute Engine par défaut.
+      - --service-account=$_RUNTIME_SA
 
 substitutions:
   _SERVICE: audioguide-api
   _REGION: europe-west1
+  _RUNTIME_SA: audioguide-dev@ai-audioguide-490920.iam.gserviceaccount.com
   _IMAGE: europe-west1-docker.pkg.dev/$PROJECT_ID/audioguide/audioguide-api
 
 options:
