@@ -1,0 +1,38 @@
+steps:
+  # 1. Dépendances + tests (échoue = pas de déploiement)
+  - name: node:22-slim
+    entrypoint: npm
+    args: ['ci']
+
+  - name: node:22-slim
+    entrypoint: npm
+    args: ['test']
+
+  # 2. Build de l'image
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '$_IMAGE:$SHORT_SHA', '.']
+
+  # 3. Push vers Artifact Registry
+  - name: gcr.io/cloud-builders/docker
+    args: ['push', '$_IMAGE:$SHORT_SHA']
+
+  # 4. Déploiement sur Cloud Run
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - $_SERVICE
+      - --image=$_IMAGE:$SHORT_SHA
+      - --region=$_REGION
+      - --platform=managed
+
+substitutions:
+  _SERVICE: audioguide-api
+  _REGION: europe-west1
+  _IMAGE: europe-west1-docker.pkg.dev/$PROJECT_ID/audioguide/audioguide-api
+
+options:
+  # Obligatoire dès qu'on utilise un service account dédié, sinon le build
+  # échoue avec "build.service_account requires logs to be stored".
+  logging: CLOUD_LOGGING_ONLY
