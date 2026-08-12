@@ -32,6 +32,9 @@ steps:
       - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
       - --region=${_REGION}
       - --platform=managed
+      # L'API est jointe par des clients externes et gère elle-même son auth
+      # par JWT ; sans ce flag Cloud Run exigerait en plus une identité IAM.
+      - --allow-unauthenticated
       # Identité d'exécution : c'est ce compte qui porte les accès GCS et TTS.
       # Sans ce flag, Cloud Run prendrait le compte Compute Engine par défaut.
       - --service-account=${_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com
