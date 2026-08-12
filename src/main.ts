@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
@@ -14,6 +14,16 @@ async function bootstrap() {
     }),
   );
 
+  // Swagger expose la cartographie complète de l'API : on ne le monte qu'en
+  // dev. Le Dockerfile pose NODE_ENV=production, `npm run start:dev` non.
+  if (process.env.NODE_ENV !== 'production') {
+    setupSwagger(app);
+  }
+
+  await app.listen(process.env.PORT ?? 3000);
+}
+
+function setupSwagger(app: INestApplication): void {
   const config = new DocumentBuilder()
     .setTitle('Audioguide API')
     .setDescription('API documentation for Audioguide')
@@ -35,7 +45,5 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
-
-  await app.listen(process.env.PORT ?? 3000);
 }
 void bootstrap();
