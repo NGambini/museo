@@ -393,7 +393,7 @@ export class AudioguideService {
 
     const [ttsResponse] = await this.ttsClient.synthesizeSpeech({
       input: { ssml },
-      voice: { languageCode: 'fr-FR', name: 'fr-FR-Wavenet-G' },
+      voice: { languageCode: 'fr-FR', name: 'fr-FR-Neural2-G' },
       audioConfig: {
         audioEncoding:
           protos.google.cloud.texttospeech.v1beta1.AudioEncoding.MP3,
