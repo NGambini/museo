@@ -1,7 +1,6 @@
-import { Column, Entity, OneToMany } from 'typeorm';
+import { Column, Entity } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { BaseEntity } from '../common/base.entity';
-import { Audioguide } from '../audioguide/audioguide.entity';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -14,7 +13,4 @@ export class User extends BaseEntity {
 
   @Column({ type: 'text', nullable: true })
   refreshToken: string | null;
-
-  @OneToMany(() => Audioguide, (audioguide) => audioguide.user)
-  audioguides: Audioguide[];
 }

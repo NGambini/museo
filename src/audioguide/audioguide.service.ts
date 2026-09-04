@@ -1,11 +1,11 @@
 import {
   Injectable,
   NotFoundException,
-  ForbiddenException,
   InternalServerErrorException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThanOrEqual, Repository } from 'typeorm';
 import { Storage, Bucket } from '@google-cloud/storage';
 import { v1beta1, protos } from '@google-cloud/text-to-speech';
 import { GoogleGenAI } from '@google/genai';
@@ -26,6 +26,12 @@ import {
   buildTranscript,
 } from './audioguide.utils';
 
+// Plafond global, tous utilisateurs confondus. Le throttle du contrôleur borne
+// ce qu'un compte peut consommer ; celui-ci borne la dépense Gemini + TTS de la
+// journée quel que soit le nombre de comptes créés. Les cache hits n'y entrent
+// pas : ils ne déclenchent aucun appel payant.
+const MAX_GENERATIONS_PER_DAY = 100;
+
 @Injectable()
 export class AudioguideService {
   private readonly storage: Storage;
@@ -39,36 +45,18 @@ export class AudioguideService {
     this.ttsClient = new v1beta1.TextToSpeechClient();
   }
 
-  async findAll(userId: string): Promise<Audioguide[]> {
-    const audioguides = await this.audioguideRepository.find({
-      where: { userId },
-    });
-    return Promise.all(audioguides.map((a) => this.withSignedUrls(a)));
-  }
-
-  async findOne(id: string, userId: string): Promise<Audioguide> {
+  // Les audioguides forment un catalogue partagé : le cache de `generate`
+  // renvoie l'entrée créée par quelqu'un d'autre, elle doit donc rester
+  // lisible par n'importe quel utilisateur.
+  async findOne(id: string): Promise<Audioguide> {
     const audioguide = await this.audioguideRepository.findOne({
       where: { id },
     });
     if (!audioguide) throw new NotFoundException('Audioguide not found');
-    if (audioguide.userId !== userId) throw new ForbiddenException();
     return this.withSignedUrls(audioguide);
   }
 
-  async remove(id: string, userId: string): Promise<void> {
-    const audioguide = await this.audioguideRepository.findOne({
-      where: { id },
-    });
-    if (!audioguide) throw new NotFoundException('Audioguide not found');
-    if (audioguide.userId !== userId) throw new ForbiddenException();
-    await this.audioguideRepository.remove(audioguide);
-  }
-
-  async generate(
-    placeId: string,
-    lang: string,
-    userId: string,
-  ): Promise<Audioguide> {
+  async generate(placeId: string, lang: string): Promise<Audioguide> {
     const existing = await this.audioguideRepository.findOne({
       where: { placeId, lang },
     });
@@ -76,6 +64,8 @@ export class AudioguideService {
       console.log(`Cache hit for place_id ${placeId}`);
       return this.withSignedUrls(existing);
     }
+
+    await this.assertDailyQuotaAvailable();
 
     console.log(`Generating audioguide for place_id ${placeId}`);
 
@@ -111,12 +101,32 @@ export class AudioguideService {
     const saved = await this.persistAudioguideToDatabase(
       placeId,
       lang,
-      userId,
       placeDetails,
       geminiResult,
     );
 
     return this.withSignedUrls(saved);
+  }
+
+  // Compte les audioguides créés depuis minuit UTC. Une génération qui échoue
+  // ne crée pas de ligne et n'est donc pas décomptée : le plafond porte sur les
+  // générations réussies, pas sur les tentatives.
+  private async assertDailyQuotaAvailable(): Promise<void> {
+    const startOfDayUtc = new Date();
+    startOfDayUtc.setUTCHours(0, 0, 0, 0);
+
+    const generatedToday = await this.audioguideRepository.count({
+      where: { createdAt: MoreThanOrEqual(startOfDayUtc) },
+    });
+
+    if (generatedToday >= MAX_GENERATIONS_PER_DAY) {
+      console.warn(
+        `Daily generation cap reached (${generatedToday}/${MAX_GENERATIONS_PER_DAY})`,
+      );
+      throw new ServiceUnavailableException(
+        'Daily generation limit reached, please try again tomorrow',
+      );
+    }
   }
 
   private async signedUrl(path: string): Promise<string> {
@@ -420,7 +430,6 @@ export class AudioguideService {
   private async persistAudioguideToDatabase(
     placeId: string,
     lang: string,
-    userId: string,
     placeDetails: PlaceDetails,
     geminiResult: GeminiResult,
   ): Promise<Audioguide> {
@@ -431,7 +440,6 @@ export class AudioguideService {
         latitude: placeDetails.latitude,
         longitude: placeDetails.longitude,
         lang,
-        userId,
         attributes: buildAudioguideAttributes(placeDetails, geminiResult),
       });
 

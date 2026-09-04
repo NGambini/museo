@@ -1,7 +1,6 @@
-import { Column, Entity, Index, ManyToOne, JoinColumn } from 'typeorm';
+import { Column, Entity, Index } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { BaseEntity } from '../common/base.entity';
-import { User } from '../users/user.entity';
 
 @Entity('audioguides')
 @Index(['placeId', 'lang'], { unique: true })
@@ -26,14 +25,6 @@ export class Audioguide extends BaseEntity {
   @ApiProperty({ example: 'fr' })
   @Column({ default: 'fr' })
   lang: string;
-
-  @ApiProperty({ example: 'uuid' })
-  @Column()
-  userId: string;
-
-  @ManyToOne(() => User, (user) => user.audioguides, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
-  user: User;
 
   @ApiProperty({ example: { title: 'Tour Eiffel', chapters: [] } })
   @Column({ type: 'jsonb', default: {} })
