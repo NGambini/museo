@@ -36,7 +36,7 @@ export function useGenerateAudioguide() {
         body: JSON.stringify(input),
       }),
     onSuccess: (newAudioguide) => {
-      // Ajoute directement au cache sans refetch
+      // Add straight to the cache instead of refetching
       queryClient.setQueryData<Audioguide[]>(KEYS.all, (prev = []) => [newAudioguide, ...prev]);
       // Seed le cache individuel aussi
       queryClient.setQueryData(KEYS.one(newAudioguide.id), newAudioguide);

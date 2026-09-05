@@ -43,7 +43,7 @@ export function AuthLayout({
               ) : null}
             </VStack>
 
-            {/* Contenu du formulaire */}
+            {/* Form content */}
             <VStack className="flex-1" space="md">
               {children}
             </VStack>
