@@ -95,7 +95,7 @@ describe('AudioguideService', () => {
       );
     });
 
-    it('returns the audioguide whoever created it (catalogue partagé)', async () => {
+    it('returns the audioguide whoever created it (shared catalogue)', async () => {
       mockRepository.findOne.mockResolvedValue(makeAudioguide());
 
       const result = await service.findOne('ag-uuid');
@@ -167,7 +167,7 @@ describe('AudioguideService', () => {
     });
 
     it('throws ServiceUnavailableException once the daily cap is reached', async () => {
-      // Pas de cache hit : la génération doit passer par le plafond.
+      // No cache hit: generation has to go through the cap.
       mockRepository.findOne.mockResolvedValue(null);
       mockRepository.count.mockResolvedValue(100);
 

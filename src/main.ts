@@ -14,8 +14,8 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger expose la cartographie complète de l'API : on ne le monte qu'en
-  // dev. Le Dockerfile pose NODE_ENV=production, `npm run start:dev` non.
+  // Swagger maps the whole API surface, so it is only mounted in dev. The
+  // Dockerfile sets NODE_ENV=production; `npm run start:dev` does not.
   if (process.env.NODE_ENV !== 'production') {
     setupSwagger(app);
   }

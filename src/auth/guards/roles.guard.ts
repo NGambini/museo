@@ -18,9 +18,9 @@ export class RolesGuard implements CanActivate {
     );
     if (!requiredRoles?.length) return true;
 
-    // On lit le rôle sur l'entité rechargée par JwtStrategy, pas sur le payload
-    // du token : une promotion ou une rétrogradation en base prend effet à la
-    // requête suivante, sans attendre l'expiration de l'access token.
+    // The role is read from the entity JwtStrategy reloads on every request,
+    // not from the token payload: a promotion or demotion in the database takes
+    // effect on the next request instead of waiting for the token to expire.
     const { user } = context.switchToHttp().getRequest<RequestWithUser>();
     return !!user?.role && requiredRoles.includes(user.role);
   }

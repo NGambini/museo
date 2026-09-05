@@ -1,9 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-// Vue allégée du catalogue : pas d'`attributes`, donc aucune URL signée à
-// produire. Signer les médias de chaque chapitre pour une page entière ferait
-// des dizaines d'appels GCS par requête ; le client appelle `GET /:id` sur
-// l'audioguide qu'il veut réellement écouter.
+// Lightweight catalogue view: no `attributes`, so no signed URL to produce.
+// Signing every chapter's media for a whole page would mean dozens of GCS calls
+// per request; clients call `GET /:id` for the audioguide they actually play.
 export class AudioguideSummary {
   @ApiProperty({ example: 'uuid' })
   id: string;

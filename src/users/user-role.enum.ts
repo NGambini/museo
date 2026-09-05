@@ -1,6 +1,6 @@
-// Deux rôles seulement pour l'instant : la génération d'un audioguide coûte des
-// appels Gemini + TTS, elle reste donc réservée aux administrateurs. Les comptes
-// ordinaires consultent le catalogue déjà généré.
+// Two roles for now: generating an audioguide costs Gemini + TTS calls, so it
+// stays reserved for administrators. Regular accounts read the catalogue that
+// has already been generated.
 export enum UserRole {
   ADMIN = 'admin',
   USER = 'user',

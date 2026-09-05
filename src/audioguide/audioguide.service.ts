@@ -27,10 +27,10 @@ import {
   buildTranscript,
 } from './audioguide.utils';
 
-// Plafond global, tous utilisateurs confondus. Le throttle du contrôleur borne
-// ce qu'un compte peut consommer ; celui-ci borne la dépense Gemini + TTS de la
-// journée quel que soit le nombre de comptes créés. Les cache hits n'y entrent
-// pas : ils ne déclenchent aucun appel payant.
+// Service-wide cap, all users combined. The controller's throttle bounds what a
+// single account can consume; this one bounds the day's Gemini + TTS spend no
+// matter how many accounts exist. Cache hits do not count against it: they
+// trigger no billable call.
 const MAX_GENERATIONS_PER_DAY = 100;
 
 @Injectable()
@@ -46,9 +46,8 @@ export class AudioguideService {
     this.ttsClient = new v1beta1.TextToSpeechClient();
   }
 
-  // Les audioguides forment un catalogue partagé : le cache de `generate`
-  // renvoie l'entrée créée par quelqu'un d'autre, elle doit donc rester
-  // lisible par n'importe quel utilisateur.
+  // Audioguides form a shared catalogue: `generate`'s cache hands back the entry
+  // somebody else created, so it has to stay readable by any user.
   async findOne(id: string): Promise<Audioguide> {
     const audioguide = await this.audioguideRepository.findOne({
       where: { id },
@@ -57,9 +56,8 @@ export class AudioguideService {
     return this.withSignedUrls(audioguide);
   }
 
-  // Catalogue paginé, ouvert à tous les comptes authentifiés : c'est le seul
-  // moyen pour un compte `user` de découvrir ce qui existe, la génération lui
-  // étant fermée.
+  // Paginated catalogue, open to every authenticated account: it is the only way
+  // a `user` account can discover what exists, generation being closed to it.
   async findAll(
     page: number,
     limit: number,
@@ -136,9 +134,9 @@ export class AudioguideService {
     return this.withSignedUrls(saved);
   }
 
-  // Compte les audioguides créés depuis minuit UTC. Une génération qui échoue
-  // ne crée pas de ligne et n'est donc pas décomptée : le plafond porte sur les
-  // générations réussies, pas sur les tentatives.
+  // Counts audioguides created since midnight UTC. A failed generation writes no
+  // row and is therefore not counted: the cap applies to successful generations,
+  // not to attempts.
   private async assertDailyQuotaAvailable(): Promise<void> {
     const startOfDayUtc = new Date();
     startOfDayUtc.setUTCHours(0, 0, 0, 0);
@@ -224,16 +222,15 @@ export class AudioguideService {
   }
 
   /**
-   * Télécharge une image, ou renvoie null si la réponse n'en est pas une —
-   * sans ce contrôle, la page d'erreur HTML de Wikimedia (2 Ko) finissait
-   * uploadée en tant que photo.
+   * Downloads an image, or returns null when the response is not one — without
+   * this check, Wikimedia's 2 KB HTML error page ended up uploaded as a photo.
    */
   private async downloadImage(url: string): Promise<Buffer | null> {
     try {
       const res = await fetch(url);
       const type = res.headers.get('content-type') ?? '';
       if (!res.ok || !type.startsWith('image/')) {
-        console.log(`Réponse non-image ignorée (${res.status}, ${type})`);
+        console.log(`Ignored non-image response (${res.status}, ${type})`);
         return null;
       }
       return Buffer.from(await res.arrayBuffer());
@@ -272,8 +269,8 @@ export class AudioguideService {
 
       const generateContent = () =>
         ai.models.generateContent({
-          // Gemini 3+ requis pour le grounding. Pas de responseMimeType ici :
-          // combiné au grounding, l'API répond 200 sans aucun candidat.
+          // Gemini 3+ is required for grounding. No responseMimeType here:
+          // combined with grounding, the API answers 200 with no candidate.
           model: 'gemini-3.5-flash-lite',
           contents: [
             {
@@ -319,10 +316,10 @@ export class AudioguideService {
     photoReferences: string[],
   ): Promise<void> {
     try {
-      // En série : tout lancer en parallèle faisait répondre 429 à Wikimedia.
+      // Sequential: firing these in parallel made Wikimedia answer 429.
       for (const [index, chapter] of chapters.entries()) {
-        // On décale de 1 pour ne pas répéter la photo principale, qui est la
-        // première du lot.
+        // Offset by 1 so the main photo, which is the first of the batch, is
+        // not repeated.
         const fallback =
           photoReferences.length > 0
             ? photoReferences[(index + 1) % photoReferences.length]
@@ -346,8 +343,8 @@ export class AudioguideService {
   }
 
   /**
-   * Cherche une illustration sur Wikimedia et, à défaut, retombe sur une photo
-   * Google Places du lieu — de sorte qu'un chapitre ait toujours une image.
+   * Looks for an illustration on Wikimedia and otherwise falls back to a Google
+   * Places photo of the venue, so that a chapter always has an image.
    */
   private async fetchAndUploadOneChapterImage(
     chapter: GeminiChapter,
@@ -376,7 +373,7 @@ export class AudioguideService {
           : null);
 
       if (!buffer) {
-        console.log(`Aucune image pour le chapitre ${chapter.chapter_number}`);
+        console.log(`No image for chapter ${chapter.chapter_number}`);
         return;
       }
 
@@ -386,7 +383,7 @@ export class AudioguideService {
       chapter.image_url = path;
       console.log(`Chapter ${chapter.chapter_number} image uploaded`);
     } catch {
-      console.log(`Aucune image pour le chapitre ${chapter.chapter_number}`);
+      console.log(`No image for chapter ${chapter.chapter_number}`);
     }
   }
 

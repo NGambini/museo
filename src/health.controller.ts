@@ -3,8 +3,8 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
 /**
- * Sonde de vie. Contrairement à `/`, elle touche réellement la base : une API
- * qui répond mais ne peut plus lire ses données n'est pas en bonne santé.
+ * Liveness probe. Unlike `/`, it actually hits the database: an API that
+ * answers but can no longer read its own data is not healthy.
  */
 @Controller('health')
 export class HealthController {
@@ -17,8 +17,8 @@ export class HealthController {
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       console.error(`Health check failed: ${msg}`);
-      // 503 plutôt que 500 : le service est temporairement indisponible, ce que
-      // les sondes et les load balancers savent interpréter.
+      // 503 rather than 500: the service is temporarily unavailable, which is
+      // what probes and load balancers know how to act on.
       throw new ServiceUnavailableException({
         status: 'error',
         database: 'down',

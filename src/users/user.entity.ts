@@ -12,8 +12,8 @@ export class User extends BaseEntity {
   @Column()
   password: string;
 
-  // Les comptes créés par signup sont toujours `user`. La promotion en `admin`
-  // se fait à la main en base :
+  // Accounts created through signup are always `user`. Promotion to `admin` is
+  // done by hand in the database:
   //   UPDATE users SET role = 'admin' WHERE email = '...';
   @ApiProperty({ enum: UserRole, example: UserRole.USER })
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })

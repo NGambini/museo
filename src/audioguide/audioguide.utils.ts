@@ -38,8 +38,8 @@ export function validateGeminiResult(result: GeminiResult): void {
 }
 
 export function parseGeminiText(text: string): GeminiResult {
-  // Sans responseMimeType (incompatible avec le grounding), le modèle entoure
-  // parfois son JSON de balises markdown.
+  // Without responseMimeType (incompatible with grounding), the model sometimes
+  // wraps its JSON in markdown fences.
   const json = text.trim().replace(/^```(?:json)?|```$/g, '');
   const result = JSON.parse(json) as GeminiResult;
   validateGeminiResult(result);
@@ -111,8 +111,8 @@ export interface ParsedPlacesData {
   latitude: number;
   longitude: number;
   rating: number | null;
-  /** Toutes les photos du lieu : la 1re sert de photo principale, les suivantes
-   * de repli quand Wikimedia ne trouve rien pour un chapitre. */
+  /** Every photo of the place: the first is used as the main photo, the rest as
+   * fallbacks when Wikimedia finds nothing for a chapter. */
   photoReferences: string[];
 }
 
