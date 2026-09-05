@@ -57,8 +57,11 @@ substitutions:
   _REPO: audioguide
   _SA_NAME: audioguide-dev
   _API_BASE_URL: https://audioguide-api-905248379551.europe-west1.run.app
-  _JWT_SECRET_NAME: jwt-access-secret
-  _PLACES_SECRET_NAME: google-places-api-key
+  # Existing secrets, shared with the API. JWT_ACCESS_SECRET in particular
+  # must stay a single source: two copies could drift, and a drift there makes
+  # the backoffice silently reject every token the API issues.
+  _JWT_SECRET_NAME: JWT_ACCESS_SECRET
+  _PLACES_SECRET_NAME: GOOGLE_PLACES_API_KEY
 
 options:
   # Required as soon as a dedicated service account is used, otherwise the build

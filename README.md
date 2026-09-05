@@ -214,7 +214,6 @@ pré-construire au build si ça devenait gênant.
 Le service n'a besoin ni de Cloud SQL ni du mot de passe de la base.
 
 `cloudbuild.yaml` pose lui-même `API_BASE_URL` et rattache les secrets
-`jwt-access-secret` et `google-places-api-key` : les deux doivent exister dans
-Secret Manager avant le premier build, sinon la révision ne démarre pas
-(`env.ts` lève sur `JWT_ACCESS_SECRET` manquant). Le service Cloud Run n'a pas à
-être créé à la main, `gcloud run deploy` s'en charge.
+`JWT_ACCESS_SECRET` et `GOOGLE_PLACES_API_KEY`, déjà présents dans Secret
+Manager et partagés avec l'API. Le service Cloud Run n'a pas à être créé à la
+main : `gcloud run deploy` s'en charge au premier build.
