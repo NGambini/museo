@@ -3,10 +3,10 @@ import type { ApiTokens } from './client.js';
 import type { JwtClaims } from './client.js';
 
 /**
- * Augmentations posées par la garde d'authentification, le temps d'une requête.
+ * Augmentations set by the auth guard, for the lifetime of one request.
  *
- * `session` n'est pas une session : c'est l'objet ordinaire qu'AdminJS s'attend
- * à trouver pour peupler `currentAdmin`. Rien n'est stocké côté serveur.
+ * `session` is not a session: it is the plain object AdminJS expects to find in
+ * order to populate `currentAdmin`. Nothing is stored server-side.
  */
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace

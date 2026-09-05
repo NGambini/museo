@@ -2,23 +2,23 @@ import type { BrandingOptions } from 'adminjs';
 import type { ThemeOverride } from '@adminjs/design-system';
 
 /**
- * Palette du backoffice.
+ * Backoffice palette.
  *
- * Deux couleurs de marque : l'orange de Jules en primaire, un gris neutre en
- * secondaire. Le reste est un Solarized Light adouci — fond crème plutôt que
- * blanc pur, pour ne pas fatiguer les yeux sur de longues sessions d'édition.
+ * Two brand colours: Jules's orange as primary, a neutral grey as secondary.
+ * The rest is a softened Solarized Light — a cream ground rather than pure
+ * white, so long editing sessions stay easy on the eyes.
  *
- * Point non évident : AdminJS peint ses cartes avec `colors.white`
- * (`<Box variant="white">`), pas avec `colors.container`. Laisser `white` à
- * #fff garderait donc toutes les listes et formulaires éclatants sur le fond
- * crème. C'est ce jeton qu'il faut adoucir pour que la teinte prenne partout.
+ * The non-obvious part: AdminJS paints its cards with `colors.white`
+ * (`<Box variant="white">`), not `colors.container`. Leaving `white` at #fff
+ * would therefore keep every list and form glaring against the cream ground.
+ * That token is the one to soften for the tint to take everywhere.
  */
 const PRIMARY = '#f49d25';
 const SECONDARY = '#6b7280';
 
 export const theme: Partial<ThemeOverride> = {
   colors: {
-    // ── Marque ────────────────────────────────────────────────────────────
+    // ── Brand ─────────────────────────────────────────────────────────────
     primary100: PRIMARY,
     primary80: '#f6b151',
     primary60: '#f8c47c',
@@ -27,26 +27,26 @@ export const theme: Partial<ThemeOverride> = {
     accent: SECONDARY,
     love: PRIMARY,
 
-    // ── Surfaces (Solarized Light adouci) ─────────────────────────────────
-    bg: '#f6efdd', // page, légèrement plus soutenu que les cartes
-    white: '#fffdf5', // cartes AdminJS — cf. commentaire ci-dessus
+    // ── Surfaces (softened Solarized Light) ───────────────────────────────
+    bg: '#f6efdd', // page, a touch deeper than the cards
+    white: '#fffdf5', // AdminJS cards — see the note above
     container: '#fffdf5',
     sidebar: '#fbf5e6',
     filterBg: '#f2ebd8',
     highlight: '#f0e9d6',
-    grey20: '#eee8d5', // base2 Solarized : badges, en-têtes de section
+    grey20: '#eee8d5', // Solarized base2: badges, section headers
     border: '#e5dcc4',
     inputBorder: '#d8cfb6',
     separator: '#ded5bd',
 
-    // ── Texte ─────────────────────────────────────────────────────────────
+    // ── Text ──────────────────────────────────────────────────────────────
     text: '#2b3641',
     grey100: '#2b3641',
     grey80: '#4b5563',
     grey60: SECONDARY,
     grey40: '#a9a294',
 
-    // ── Sémantique, accordée au Solarized ─────────────────────────────────
+    // ── Semantic colours, tuned to Solarized ──────────────────────────────
     info: '#268bd2',
     infoDark: '#1c6ea8',
     infoLight: '#e4eff8',
@@ -64,8 +64,8 @@ export const theme: Partial<ThemeOverride> = {
 
 export const branding: BrandingOptions = {
   companyName: 'Audioguide — Backoffice',
-  // Servi par express.static depuis public/. AdminJS s'en sert à la fois pour
-  // la page de login et pour l'en-tête de la sidebar.
+  // Served by express.static from public/. AdminJS uses it both on the login
+  // page and in the sidebar header.
   logo: '/static/jules.svg',
   favicon: '/static/jules.svg',
   withMadeWithLove: false,

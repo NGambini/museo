@@ -2,9 +2,9 @@ import type { ResourceWithOptions } from 'adminjs';
 import { User } from '../../entities/user.entity.js';
 
 /**
- * Les comptes sont en lecture seule ici, à une exception près : le rôle.
- * Créer un compte passe par POST /auth/signup (l'API hache le mot de passe) ;
- * le backoffice ne doit jamais écrire dans la colonne `password`.
+ * Accounts are read-only here, with one exception: the role. Creating an account
+ * goes through POST /auth/signup (the API hashes the password); the backoffice
+ * must never write to the `password` column.
  */
 export const userResource: ResourceWithOptions = {
   resource: User,
@@ -21,9 +21,9 @@ export const userResource: ResourceWithOptions = {
       password: { isVisible: false },
       refreshToken: { isVisible: false },
       role: {
-        // Libellés volontairement courts : en liste, AdminJS les passe dans
-        // `startCase` de lodash, qui déburre les accents et découpe la
-        // ponctuation. Le détail est dans la description ci-dessous.
+        // Deliberately short labels: in list view AdminJS runs them through
+        // lodash's `startCase`, which strips accents and splits on punctuation.
+        // The detail lives in the description below.
         availableValues: [
           { value: 'admin', label: 'Admin' },
           { value: 'user', label: 'User' },

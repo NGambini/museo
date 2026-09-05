@@ -11,18 +11,18 @@ import {
 import { env } from '../config/env.js';
 
 /**
- * Authentification sans état.
+ * Stateless authentication.
  *
- * Les jetons délivrés par l'API vivent dans deux cookies httpOnly ; il n'y a ni
- * table ni store de session côté backoffice. Chaque requête revalide la
- * signature de l'access token et relit le rôle : une rétrogradation en base
- * prend effet au plus tard à l'expiration du jeton courant.
+ * The tokens issued by the API live in two httpOnly cookies; there is no session
+ * table and no store on the backoffice side. Every request re-verifies the
+ * access token's signature and re-reads the role, so a demotion in the database
+ * takes effect no later than the current token's expiry.
  */
 const ACCESS_COOKIE = 'bo_at';
 const REFRESH_COOKIE = 'bo_rt';
 
-// Les cookies portent la durée du refresh token de l'API (7 j). La validité
-// réelle reste celle du `exp` de chaque jeton, vérifiée à chaque requête.
+// Cookies carry the lifetime of the API's refresh token (7 days). Actual
+// validity remains each token's own `exp`, checked on every request.
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function cookieOptions() {
@@ -47,11 +47,11 @@ export function clearAuthCookies(res: Response): void {
 }
 
 /**
- * Vérifie la signature et la péremption d'un access token.
+ * Verifies an access token's signature and expiry.
  *
- * `algorithms` est verrouillé volontairement : sans cette contrainte,
- * jsonwebtoken accepterait l'algorithme annoncé dans l'en-tête du jeton, ce qui
- * ouvre la porte aux attaques par confusion d'algorithme.
+ * `algorithms` is pinned on purpose: without that constraint, jsonwebtoken would
+ * trust the algorithm advertised in the token's own header, which opens the door
+ * to algorithm-confusion attacks.
  */
 export function verifyAccessToken(token: string): JwtClaims | null {
   try {
@@ -63,7 +63,7 @@ export function verifyAccessToken(token: string): JwtClaims | null {
   }
 }
 
-/** Le compte a-t-il le droit d'entrer ? Le rôle prime, la liste blanche affine. */
+/** Is this account allowed in? The role decides, the allowlist narrows further. */
 export function isAllowedAdmin(claims: JwtClaims): boolean {
   if (claims.role !== 'admin') return false;
   if (env.allowedAdminEmails.length === 0) return true;
@@ -76,8 +76,9 @@ export interface AuthenticatedRequest {
 }
 
 /**
- * Résout la requête courante en admin authentifié, en renouvelant les jetons au
- * passage si l'access token a expiré. Renvoie null si rien d'exploitable.
+ * Resolves the current request into an authenticated admin, refreshing the tokens
+ * along the way if the access token has expired. Returns null when there is
+ * nothing usable.
  */
 async function resolveAdmin(
   req: Request,
@@ -113,9 +114,9 @@ async function resolveAdmin(
 }
 
 /**
- * Ce qu'AdminJS affiche comme utilisateur courant. Il le sérialise dans le HTML
- * envoyé au navigateur : rien d'autre que l'identité ne doit y figurer, surtout
- * pas les jetons.
+ * What AdminJS shows as the current user. It serialises this into the HTML sent
+ * to the browser, so nothing beyond identity belongs here — least of all the
+ * tokens.
  */
 function toCurrentAdmin(claims: JwtClaims) {
   return {
@@ -127,21 +128,21 @@ function toCurrentAdmin(claims: JwtClaims) {
 }
 
 function attach(req: Request, resolved: AuthenticatedRequest): void {
-  // AdminJS lit `req.session.adminUser` pour peupler `currentAdmin`
-  // (cf. @adminjs/express/lib/buildRouter.js). On lui fournit un objet ordinaire
-  // le temps de la requête : aucun store, rien de persisté.
+  // AdminJS reads `req.session.adminUser` to populate `currentAdmin`
+  // (see @adminjs/express/lib/buildRouter.js). We hand it a plain object for the
+  // lifetime of the request: no store, nothing persisted.
   req.session = { adminUser: toCurrentAdmin(resolved.claims) };
   req.boTokens = resolved.tokens;
 }
 
-/** Garde des pages : redirige vers le formulaire de connexion. */
+/** Page guard: redirects to the login form. */
 export function requireAdminPage(admin: AdminJS) {
   const { loginPath, rootPath } = admin.options;
 
   return async (req: Request, res: Response, next: NextFunction) => {
-    // Les assets sont servis avant l'authentification, sinon la page de
-    // connexion elle-même n'a ni JS ni styles. C'est aussi ce que fait
-    // buildAuthenticatedRouter, qui monte buildAssets avant sa protection.
+    // Assets are served before authentication, otherwise the login page itself
+    // would have no JS and no styles. buildAuthenticatedRouter does the same,
+    // mounting buildAssets ahead of its own protection.
     if (req.path.startsWith('/frontend/assets/')) return next();
 
     const resolved = await resolveAdmin(req, res);
@@ -155,7 +156,7 @@ export function requireAdminPage(admin: AdminJS) {
   };
 }
 
-/** Garde des routes JSON : 401 plutôt qu'une redirection. */
+/** JSON route guard: 401 rather than a redirect. */
 export async function requireAdminApi(
   req: Request,
   res: Response,
@@ -170,7 +171,7 @@ export async function requireAdminApi(
   next();
 }
 
-// ── Formulaire de connexion ──────────────────────────────────────────────────
+// ── Login form ───────────────────────────────────────────────────────────────
 
 export function renderLoginPage(admin: AdminJS) {
   return async (req: Request, res: Response) => {
@@ -204,23 +205,23 @@ export function handleLogin(admin: AdminJS) {
       tokens = await login(email, password);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) return fail(400);
-      console.error('[auth] login vers l’API en échec :', error);
+      console.error('[auth] login against the API failed:', error);
       return fail(500);
     }
 
     const claims = verifyAccessToken(tokens.accessToken);
     if (!claims) {
-      // Le jeton vient de l'API et ne passe pas notre vérification : les deux
-      // JWT_ACCESS_SECRET ne concordent pas.
+      // The token came from the API and fails our own verification: the two
+      // JWT_ACCESS_SECRET values do not match.
       console.error(
-        '[auth] jeton de l’API refusé à la vérification — JWT_ACCESS_SECRET diffère de celui de l’API ?',
+        "[auth] token from the API failed verification — does JWT_ACCESS_SECRET differ from the API's?",
       );
       return fail(500);
     }
 
     if (!isAllowedAdmin(claims)) {
       console.warn(
-        `[auth] ${claims.email} (rôle « ${claims.role} ») refusé à l’entrée du backoffice`,
+        `[auth] ${claims.email} (role "${claims.role}") denied entry to the backoffice`,
       );
       return fail(403);
     }
@@ -229,8 +230,8 @@ export function handleLogin(admin: AdminJS) {
 
     const redirectTo =
       typeof req.query.redirectTo === 'string' ? req.query.redirectTo : null;
-    // On ne suit que des chemins internes : une URL absolue venue de la query
-    // ferait du formulaire de connexion une redirection ouverte.
+    // Only internal paths are followed: an absolute URL coming from the query
+    // string would turn the login form into an open redirect.
     const safeRedirect =
       redirectTo && redirectTo.startsWith(admin.options.rootPath)
         ? redirectTo

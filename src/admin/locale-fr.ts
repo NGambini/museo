@@ -1,9 +1,9 @@
 import type { LocaleTranslations } from 'adminjs';
 
 /**
- * AdminJS n'embarque pas de traduction française (de, en, es, it, ja, pl,
- * pt-BR, ua, zh-CN seulement). Sans ce bundle, l'interface affiche ses clés
- * brutes — « Login Welcome Header » plutôt qu'un titre.
+ * AdminJS ships no French translation (only de, en, es, it, ja, pl, pt-BR, ua,
+ * zh-CN). Without this bundle the UI renders its raw keys — "Login Welcome
+ * Header" instead of a title.
  */
 export const frTranslations: LocaleTranslations = {
   actions: {
@@ -32,15 +32,15 @@ export const frTranslations: LocaleTranslations = {
     confirm: 'Confirmer',
     contactUs: 'Nous contacter',
   },
-  // Le nom d'une page personnalisée est traduit via le namespace `pages`,
-  // pas `labels` : c'est `translatePage(page.name)` qui rend la sidebar.
+  // A custom page's name is translated through the `pages` namespace, not
+  // `labels`: the sidebar renders it via `translatePage(page.name)`.
   pages: {
     generate: 'Générer un audioguide',
   },
   labels: {
-    // En liste, un champ à `availableValues` est rendu via
-    // `tl('<propriété>.<label>')` avec `startCase(label)` comme repli — et
-    // `startCase` supprime les accents. Ces clés rétablissent l'orthographe.
+    // In list view, a field with `availableValues` is rendered through
+    // `tl('<property>.<label>')` with `startCase(label)` as the fallback — and
+    // `startCase` strips accents. These keys restore the correct spelling.
     lang: {
       Français: 'Français',
       Anglais: 'Anglais',

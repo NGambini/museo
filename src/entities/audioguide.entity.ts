@@ -8,11 +8,11 @@ import {
 } from 'typeorm';
 import type { AudioguideAttributes } from '../types/attributes.js';
 
-// Miroir de l'entité de l'API. Deux contraintes dictent cette forme :
-//  - `BaseEntity` (Active Record) est exigé par @adminjs/typeorm, qui reconnaît
-//    ses ressources via `getRepository()` sur la classe ;
-//  - les types de colonne sont déclarés explicitement, car le backoffice tourne
-//    aussi sous tsx/esbuild, qui n'émet pas les métadonnées de décorateurs.
+// Mirror of the API's entity. Two constraints dictate this shape:
+//  - `BaseEntity` (Active Record) is required by @adminjs/typeorm, which detects
+//    its resources by calling `getRepository()` on the class;
+//  - column types are declared explicitly, because the backoffice also runs
+//    under tsx/esbuild, which does not emit decorator metadata.
 @Entity({ name: 'audioguides' })
 export class Audioguide extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')

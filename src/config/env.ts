@@ -4,7 +4,7 @@ function required(name: string): string {
   const value = process.env[name];
   if (!value) {
     throw new Error(
-      `Variable d'environnement manquante : ${name}. Copie .env.sample vers .env.`,
+      `Missing environment variable: ${name}. Copy .env.sample to .env.`,
     );
   }
   return value;
@@ -18,14 +18,14 @@ export const env = {
   port: Number(optional('PORT', '4000')),
 
   /**
-   * Le même secret que celui de l'API (JWT_ACCESS_SECRET). Le backoffice n'émet
-   * pas de jeton : il vérifie la signature de ceux que l'API a délivrés. Cette
-   * vérification n'est pas optionnelle — le token vient d'un cookie, donc du
-   * client, et sans elle n'importe qui pourrait forger un `role: admin`.
+   * The same secret as the API's (JWT_ACCESS_SECRET). The backoffice issues no
+   * token: it verifies the signature of the ones the API handed out. That check
+   * is not optional — the token arrives from a cookie, so from the client, and
+   * without it anyone could forge a `role: admin`.
    */
   jwtAccessSecret: required('JWT_ACCESS_SECRET'),
 
-  // Liste blanche facultative. Vide = tout compte `admin` de l'API entre.
+  // Optional allowlist. Empty means any `admin` account of the API gets in.
   allowedAdminEmails: optional('ALLOWED_ADMIN_EMAILS', '')
     .split(',')
     .map((email) => email.trim().toLowerCase())

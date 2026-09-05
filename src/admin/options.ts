@@ -30,14 +30,14 @@ export const adminOptions: AdminJSOptions = {
   assets: { styles: ['/static/admin.css'] },
   locale: {
     language: 'fr',
-    // Une seule langue : AdminJS masque son sélecteur dès que la liste tombe
-    // à un élément. Le bundle français ci-dessous est complet — les seules
-    // clés qu'il n'a pas sont celles du dashboard d'onboarding d'AdminJS, que
-    // l'on remplace, donc aucun repli anglais n'est nécessaire.
+    // A single language: AdminJS hides its selector as soon as the list is down
+    // to one entry. The French bundle below is complete — the only keys it lacks
+    // belong to AdminJS's onboarding dashboard, which we replace, so no English
+    // fallback is needed.
     availableLanguages: ['fr'],
-    // AdminJS ne transmet pas `language` à i18next comme `lng` : il ne s'en
-    // sert que pour calculer `fallbackLng`. C'est donc cette valeur-ci qui
-    // fixe réellement la langue affichée.
+    // AdminJS does not pass `language` to i18next as `lng`: it only uses it to
+    // derive `fallbackLng`. So this value is what actually pins the language
+    // that gets rendered.
     fallbackLng: 'fr',
     localeDetection: false,
     translations: { fr: frTranslations },

@@ -37,12 +37,12 @@ const Pill: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 /**
- * Vue lecture du jsonb, avec les médias jouables.
+ * Read view of the jsonb, with playable media.
  *
- * La base ne contient que des chemins GCS : on redemande l'enregistrement à
- * l'API (`GET /audioguides/:id`), qui renvoie les mêmes attributs avec des URLs
- * signées valables une heure. Le backoffice n'a donc aucun accès direct au
- * bucket ni aucun credential Google à porter.
+ * The database holds nothing but GCS paths, so the record is fetched again from
+ * the API (`GET /audioguides/:id`), which returns the same attributes with
+ * signed URLs valid for an hour. The backoffice therefore needs no direct bucket
+ * access and carries no Google credentials.
  */
 const AttributesShow: React.FC<ShowPropertyProps> = ({ record }) => {
   const recordId = (record?.params?.id as string) ?? record?.id;

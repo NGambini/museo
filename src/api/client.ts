@@ -3,10 +3,10 @@ import type { components, paths } from '../types/api.js';
 import type { AudioguideAttributes } from '../types/attributes.js';
 
 /**
- * Schémas issus de la spec OpenAPI de l'API NestJS, à une correction près :
- * l'API documente `attributes` comme un objet libre (le jsonb n'a pas de schéma
- * déclaré), ce que le générateur traduit par `Record<string, never>` —
- * inutilisable. On y substitue la forme réelle, écrite à la main.
+ * Schemas generated from the NestJS API's OpenAPI spec, with one correction: the
+ * API documents `attributes` as a free-form object (the jsonb has no declared
+ * schema), which the generator turns into `Record<string, never>` — unusable.
+ * The real, hand-written shape is substituted for it.
  */
 export type ApiAudioguide = Omit<
   components['schemas']['Audioguide'],
@@ -17,8 +17,8 @@ export type ApiPaginatedAudioguides =
 export type GenerateAudioguideBody =
   paths['/audioguides/generate']['post']['requestBody']['content']['application/json'];
 
-// Les routes /auth de l'API documentent leurs réponses en texte libre, sans
-// schéma : ce contrat-là est écrit à la main et ne peut pas être généré.
+// The API's /auth routes document their responses in prose, with no schema:
+// this contract is hand-written and cannot be generated.
 export interface ApiTokens {
   accessToken: string;
   refreshToken: string;
@@ -79,10 +79,9 @@ export interface JwtClaims {
 }
 
 /**
- * Lit les claims d'un access token. Pas de vérification de signature : ce token
- * nous a été remis à l'instant par l'API elle-même, il ne transite pas par
- * l'utilisateur. C'est l'API qui reste l'autorité — le backoffice s'en sert
- * uniquement pour savoir quoi afficher.
+ * Reads an access token's claims without verifying the signature. Only ever call
+ * this on a token the API just handed us over our own connection — anything that
+ * came back from a client must go through `verifyAccessToken` instead.
  */
 export function decodeJwt(token: string): JwtClaims | null {
   const payload = token.split('.')[1];
@@ -96,9 +95,9 @@ export function decodeJwt(token: string): JwtClaims | null {
 }
 
 /**
- * Appel authentifié avec rotation transparente : sur 401, on tente un refresh
- * puis on rejoue la requête une fois. Les access tokens de l'API vivent 15
- * minutes, une session de backoffice bien plus longtemps.
+ * Authenticated call with transparent rotation: on a 401, refresh once and replay
+ * the request. The API's access tokens live 15 minutes; a backoffice sitting is
+ * usually much longer.
  */
 export async function authedCall<T>(
   path: string,

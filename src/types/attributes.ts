@@ -1,12 +1,12 @@
-// Forme du jsonb `attributes` telle que produite par l'API
-// (`buildAudioguideAttributes`). Les `*_url` stockés en base sont des chemins
-// GCS relatifs ; l'API les remplace par des URLs signées à la lecture.
+// Shape of the `attributes` jsonb as produced by the API
+// (`buildAudioguideAttributes`). The `*_url` fields stored in the database are
+// relative GCS paths; the API swaps them for signed URLs on read.
 
 export interface AudioguideChapter {
   chapter_number: number;
   title: string;
   description: string;
-  /** Découpage karaoké produit par le LLM, pour la lecture synchronisée. */
+  /** Karaoke segmentation produced by the LLM, for synchronised read-along. */
   lines?: string[];
   text?: string;
   image_search_query?: string;

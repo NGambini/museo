@@ -2,9 +2,9 @@ import type { PageHandler } from 'adminjs';
 import { dataSource } from '../db/data-source.js';
 import { Audioguide } from '../entities/audioguide.entity.js';
 
-// Reflet du plafond codé dans l'API (MAX_GENERATIONS_PER_DAY). S'il change
-// là-bas, le compteur affiché ici devient faux — c'est un chiffre indicatif,
-// pas la source de vérité.
+// Mirrors the cap hard-coded in the API (MAX_GENERATIONS_PER_DAY). If it changes
+// there, the counter shown here goes stale — it is indicative, not the source of
+// truth.
 const DAILY_CAP = 100;
 
 export interface DashboardData {

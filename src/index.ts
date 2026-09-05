@@ -19,31 +19,29 @@ import './api/session.js';
 
 async function bootstrap(): Promise<void> {
   await dataSource.initialize();
-  console.log(
-    `Base ${env.db.database}@${env.db.host}:${env.db.port} connectée`,
-  );
+  console.log(`Connected to ${env.db.database}@${env.db.host}:${env.db.port}`);
 
   const app = express();
   app.set('trust proxy', 1);
   app.use(cookieParser());
 
-  // Logo et favicon : servis en clair, ils sont chargés par la page de login
-  // avant toute authentification. Pas de `maxAge` — avec un cache long, une
-  // retouche de admin.css resterait invisible et passerait pour inopérante.
+  // Logo and favicon: served unauthenticated, since the login page loads them
+  // before anyone signs in. No `maxAge` — with a long cache, an edit to
+  // admin.css would stay invisible and look like a rule that does not work.
   app.use('/static', express.static(publicDir));
 
   const admin = new AdminJS(adminOptions);
 
-  // En dev, AdminJS recompile les composants React à chaud ; en production on
-  // sert le bundle figé produit par `npm run build`.
+  // In dev, AdminJS rebuilds the React components on the fly; in production we
+  // serve the frozen bundle produced by `npm run build`.
   if (env.isProduction) {
     await admin.initialize();
   } else {
     admin.watch();
   }
 
-  // Nos routes JSON passent AVANT le routeur AdminJS : celui-ci se termine par
-  // un catch-all qui sert la SPA et masquerait tout ce qui est monté après.
+  // Our JSON routes come BEFORE the AdminJS router: it ends with a catch-all
+  // that serves the SPA and would shadow anything mounted after it.
   app.use(
     '/bo-api',
     express.json({ limit: '5mb' }),
@@ -51,10 +49,10 @@ async function bootstrap(): Promise<void> {
     boApiRouter,
   );
 
-  // On construit le routeur d'AdminJS à la main plutôt que d'utiliser
-  // `buildAuthenticatedRouter` : celui-ci impose express-session, donc un store
-  // côté serveur. Ici, l'état d'authentification tient entièrement dans deux
-  // cookies httpOnly et rien n'est persisté.
+  // The AdminJS router is assembled by hand rather than through
+  // `buildAuthenticatedRouter`, which mandates express-session and therefore a
+  // server-side store. Here the whole authentication state fits in two httpOnly
+  // cookies and nothing is persisted.
   const adminRouter = express.Router();
 
   const loginRoute = admin.options.loginPath.replace(
@@ -74,8 +72,8 @@ async function bootstrap(): Promise<void> {
   );
   adminRouter.get(logoutRoute, handleLogout(admin));
 
-  // Tout ce qui suit exige un compte admin. La garde laisse passer
-  // /frontend/assets/*, sans quoi la page de connexion perdrait son JS.
+  // Everything past this point requires an admin account. The guard lets
+  // /frontend/assets/* through, or the login page would lose its JS.
   adminRouter.use(requireAdminPage(admin));
 
   AdminJSExpress.buildRouter(admin, adminRouter);
@@ -86,13 +84,13 @@ async function bootstrap(): Promise<void> {
 
   app.listen(env.port, () => {
     console.log(
-      `Backoffice sur http://localhost:${env.port}${admin.options.rootPath}`,
+      `Backoffice on http://localhost:${env.port}${admin.options.rootPath}`,
     );
-    console.log(`API cible : ${env.apiBaseUrl}`);
+    console.log(`Target API: ${env.apiBaseUrl}`);
   });
 }
 
 bootstrap().catch((error) => {
-  console.error('Démarrage impossible :', error);
+  console.error('Startup failed:', error);
   process.exit(1);
 });

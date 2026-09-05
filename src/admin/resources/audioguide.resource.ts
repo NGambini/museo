@@ -8,11 +8,10 @@ import { Components, componentLoader } from '../component-loader.js';
 import { Audioguide } from '../../entities/audioguide.entity.js';
 
 /**
- * L'éditeur d'attributs envoie l'objet complet sérialisé dans `attributesJson`,
- * en plus (ou à la place) des clés pointées qu'AdminJS produit habituellement.
- * On reconstruit ici un payload sans ambiguïté : sans ce nettoyage, les clés
- * d'un chapitre supprimé survivraient au ré-aplatissement et le chapitre
- * réapparaîtrait après enregistrement.
+ * The attributes editor sends the whole object serialised in `attributesJson`,
+ * alongside (or instead of) the dotted keys AdminJS normally produces. This
+ * rebuilds an unambiguous payload: without the cleanup, the keys of a deleted
+ * chapter would survive re-flattening and the chapter would reappear on save.
  */
 function normalizeAttributes(request: ActionRequest): ActionRequest {
   const payload = request.payload ?? {};
@@ -49,9 +48,9 @@ export const audioguideResource: ResourceWithOptions = {
   resource: Audioguide,
   options: {
     id: 'Audioguide',
-    // `name: null` sort la ressource de tout groupe : elle devient une entrée
-    // de premier niveau dans la sidebar, tout en gardant son icône. Sans ça,
-    // AdminJS crée un groupe qui ne contient qu'elle — deux niveaux pour rien.
+    // `name: null` pulls the resource out of any group: it becomes a top-level
+    // sidebar entry while keeping its icon. Without it, AdminJS creates a group
+    // holding nothing but this resource — two levels for no reason.
     navigation: { name: null, icon: 'Headphones' },
     listProperties: ['placeName', 'lang', 'placeId', 'createdAt'],
     filterProperties: ['placeName', 'placeId', 'lang', 'createdAt'],
@@ -102,8 +101,8 @@ export const audioguideResource: ResourceWithOptions = {
     },
     actions: {
       new: {
-        // Un audioguide naît de la génération, pas d'une saisie manuelle : la
-        // création à la main produirait une fiche sans média ni contenu.
+        // An audioguide is born from generation, not from manual entry: creating
+        // one by hand would produce a record with no content and no media.
         isAccessible: false,
       },
       edit: { before: normalizeAttributes },

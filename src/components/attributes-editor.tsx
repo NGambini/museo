@@ -11,7 +11,7 @@ import {
   TextArea,
 } from '@adminjs/design-system';
 
-/** Ce que les champs du design-system exposent réellement à leur onChange. */
+/** What the design-system fields actually hand to their onChange. */
 interface ValueChangeEvent {
   target: { value: string };
 }
@@ -60,8 +60,9 @@ function newChapter(n: number): Chapter {
 }
 
 /**
- * AdminJS aplatit `record.params` en clés pointées (`attributes.chapters.0.title`).
- * `flat.get` reconstruit l'objet imbriqué correspondant au chemin.
+ * AdminJS flattens `record.params` into dotted keys
+ * (`attributes.chapters.0.title`); `flat.get` rebuilds the nested object that
+ * matches a path.
  */
 function readAttributes(
   params: RecordJSON['params'],
@@ -119,10 +120,10 @@ const AttributesEditor: React.FC<EditPropertyProps> = (props) => {
   });
 
   /**
-   * On ne pousse pas l'objet dans `attributes` : AdminJS ré-aplatirait la valeur
-   * et les clés d'un chapitre supprimé pourraient survivre dans le payload. On
-   * envoie une chaîne JSON dans un paramètre dédié, que le hook `before` de la
-   * ressource reparse côté serveur — le payload reste ainsi déterministe.
+   * The object is not pushed into `attributes`: AdminJS would re-flatten it and
+   * the keys of a deleted chapter could survive in the payload. Instead a JSON
+   * string goes into a dedicated param, which the resource's `before` hook
+   * re-parses server-side — keeping the payload deterministic.
    */
   const push = React.useCallback(
     (next: Attributes) => {
@@ -141,8 +142,8 @@ const AttributesEditor: React.FC<EditPropertyProps> = (props) => {
   const setChapters = (next: Chapter[]) =>
     push({
       ...attributes,
-      // Le numéro de chapitre suit toujours la position dans la liste : c'est
-      // lui qui pilote l'ordre de lecture côté application mobile.
+      // The chapter number always tracks its position in the list: it is what
+      // drives playback order in the mobile app.
       chapters: next.map((chapter, index) => ({
         ...chapter,
         chapter_number: index + 1,

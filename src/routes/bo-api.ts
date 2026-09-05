@@ -15,11 +15,11 @@ import { env } from '../config/env.js';
 import '../api/session.js';
 
 /**
- * Routes maison consommées par les composants React du backoffice. Montées
- * hors du routeur AdminJS : l'adaptateur Express d'AdminJS termine par un
- * catch-all qui sert la SPA et masquerait tout ce qui est ajouté après lui.
+ * In-house routes consumed by the backoffice's React components. Mounted outside
+ * the AdminJS router: its Express adapter ends with a catch-all that serves the
+ * SPA and would shadow anything registered after it.
  *
- * `requireAdminApi` est posé par le point d'entrée, en amont de ce routeur.
+ * `requireAdminApi` is applied by the entrypoint, ahead of this router.
  */
 export const boApiRouter = Router();
 
@@ -33,9 +33,9 @@ function fail(res: Response, error: unknown): void {
 }
 
 /**
- * Appelle l'API NestJS avec les jetons de la requête courante. Si l'API en
- * renvoie de nouveaux, on repose les cookies : sans ça, la rotation serait
- * perdue au retour de la requête.
+ * Calls the NestJS API with the current request's tokens. If the API hands back
+ * new ones, the cookies are rewritten: otherwise the rotation would be lost when
+ * the request returns.
  */
 function withSession<T>(
   req: Request,
@@ -48,10 +48,10 @@ function withSession<T>(
   );
 }
 
-// ── Médias ────────────────────────────────────────────────────────────────────
-// La base ne stocke que des chemins GCS. C'est l'API qui sait les signer, et
-// elle le fait déjà sur GET /audioguides/:id : le backoffice n'a donc besoin
-// d'aucun credential Google Cloud pour laisser écouter les pistes.
+// ── Media ─────────────────────────────────────────────────────────────────────
+// The database only stores GCS paths. The API is what knows how to sign them,
+// and already does so on GET /audioguides/:id: the backoffice therefore needs no
+// Google Cloud credentials of its own to let anyone play the tracks.
 boApiRouter.get('/audioguides/:id/media', async (req, res) => {
   try {
     const audioguide = await withSession<ApiAudioguide>(
@@ -66,7 +66,7 @@ boApiRouter.get('/audioguides/:id/media', async (req, res) => {
   }
 });
 
-// ── Génération ────────────────────────────────────────────────────────────────
+// ── Generation ────────────────────────────────────────────────────────────────
 boApiRouter.post('/generate', async (req, res) => {
   const { place_id, lang } = req.body as Partial<GenerateAudioguideBody>;
   if (!place_id || typeof place_id !== 'string') {
@@ -91,7 +91,7 @@ boApiRouter.post('/generate', async (req, res) => {
 });
 
 // ── Google Places ─────────────────────────────────────────────────────────────
-// Proxy côté serveur : la clé Places ne descend jamais dans le navigateur.
+// Server-side proxy: the Places key never reaches the browser.
 interface PlacesAutocompleteResponse {
   status: string;
   error_message?: string;
@@ -125,7 +125,7 @@ boApiRouter.get('/places/autocomplete', async (req, res) => {
     const response = await fetch(url);
     const body = (await response.json()) as PlacesAutocompleteResponse;
 
-    // Places renvoie 200 même sur erreur : le verdict est dans `status`.
+    // Places answers 200 even on failure: the verdict is in `status`.
     if (body.status !== 'OK' && body.status !== 'ZERO_RESULTS') {
       res.status(502).json({
         message: body.error_message ?? `Google Places : ${body.status}`,
@@ -147,7 +147,7 @@ boApiRouter.get('/places/autocomplete', async (req, res) => {
   }
 });
 
-/** Indique si un place_id est déjà au catalogue, pour prévenir avant de générer. */
+/** Tells whether a place_id is already in the catalogue, to warn before generating. */
 boApiRouter.get('/places/:placeId/existing', async (req, res) => {
   const { placeId } = req.params;
   const lang = String(req.query.lang ?? 'fr');

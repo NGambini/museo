@@ -12,7 +12,7 @@ import {
   Text,
 } from '@adminjs/design-system';
 
-/** Ce que les champs du design-system exposent réellement à leur onChange. */
+/** What the design-system fields actually hand to their onChange. */
 interface ValueChangeEvent {
   target: { value: string };
 }
@@ -40,9 +40,9 @@ const LANGUAGES = [
 ];
 
 /**
- * La page est servie sous `${rootPath}/pages/generate` : on en déduit le
- * rootPath plutôt que de le coder en dur, pour que les liens restent justes si
- * la config d'AdminJS change.
+ * The page is served under `${rootPath}/pages/generate`, so rootPath is derived
+ * from the URL rather than hard-coded, keeping links correct if the AdminJS
+ * configuration changes.
  */
 function rootPath(): string {
   const [prefix] = window.location.pathname.split('/pages/');
@@ -68,7 +68,7 @@ const GeneratePage: React.FC = () => {
   const [result, setResult] = React.useState<GeneratedAudioguide | null>(null);
   const [generateError, setGenerateError] = React.useState<string | null>(null);
 
-  // ── Autocomplétion Google Places, debouncée ────────────────────────────────
+  // ── Google Places autocomplete, debounced ──────────────────────────────────
   React.useEffect(() => {
     const input = query.trim();
     if (selected && input === selected.description) return;
@@ -109,7 +109,7 @@ const GeneratePage: React.FC = () => {
     };
   }, [query, lang, selected]);
 
-  // ── Le place_id est-il déjà au catalogue ? ─────────────────────────────────
+  // ── Is this place_id already in the catalogue? ─────────────────────────────
   React.useEffect(() => {
     if (!selected) {
       setExisting(null);
@@ -136,8 +136,8 @@ const GeneratePage: React.FC = () => {
     };
   }, [selected, lang]);
 
-  // Compteur d'attente : la génération enchaîne Gemini puis la synthèse vocale
-  // de chaque chapitre, et l'API coupe à 60 s.
+  // Waiting counter: generation runs Gemini and then text-to-speech for every
+  // chapter, and the API cuts off at 60 s.
   React.useEffect(() => {
     if (!generating) return;
     const started = Date.now();
