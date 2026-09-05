@@ -18,7 +18,6 @@ export interface AudioguideChapter {
 export interface AudioguideAttributes {
   title?: string;
   history?: string;
-  admission_price?: string | null;
   rating?: number | null;
   main_image_url?: string | null;
   chapters?: AudioguideChapter[];
@@ -28,7 +27,6 @@ export interface AudioguideAttributes {
 export const EMPTY_ATTRIBUTES: AudioguideAttributes = {
   title: '',
   history: '',
-  admission_price: null,
   rating: null,
   main_image_url: null,
   chapters: [],

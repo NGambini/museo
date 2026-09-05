@@ -32,7 +32,6 @@ interface Chapter {
 interface Attributes {
   title?: string;
   history?: string;
-  admission_price?: string | null;
   rating?: number | null;
   main_image_url?: string | null;
   chapters?: Chapter[];
@@ -42,7 +41,6 @@ interface Attributes {
 const EMPTY: Attributes = {
   title: '',
   history: '',
-  admission_price: null,
   rating: null,
   main_image_url: null,
   chapters: [],
@@ -280,38 +278,22 @@ const AttributesEditor: React.FC<EditPropertyProps> = (props) => {
                 />
               </Field>
 
-              <Box flex flexDirection="row" style={{ gap: 16 }}>
-                <Box flexGrow={1}>
-                  <Field label="Tarif d’entrée">
-                    <Input
-                      width="100%"
-                      value={attributes.admission_price ?? ''}
-                      placeholder="6.50€ — vide = gratuit / inconnu"
-                      onChange={(event: ValueChangeEvent) =>
-                        setField('admission_price', event.target.value || null)
-                      }
-                    />
-                  </Field>
-                </Box>
-                <Box flexGrow={1}>
-                  <Field label="Note Google">
-                    <Input
-                      width="100%"
-                      type="number"
-                      step="0.1"
-                      value={attributes.rating ?? ''}
-                      onChange={(event: ValueChangeEvent) =>
-                        setField(
-                          'rating',
-                          event.target.value === ''
-                            ? null
-                            : Number(event.target.value),
-                        )
-                      }
-                    />
-                  </Field>
-                </Box>
-              </Box>
+              <Field label="Note Google">
+                <Input
+                  width="100%"
+                  type="number"
+                  step="0.1"
+                  value={attributes.rating ?? ''}
+                  onChange={(event: ValueChangeEvent) =>
+                    setField(
+                      'rating',
+                      event.target.value === ''
+                        ? null
+                        : Number(event.target.value),
+                    )
+                  }
+                />
+              </Field>
 
               <Field
                 label="Image principale"

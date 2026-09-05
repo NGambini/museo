@@ -16,7 +16,6 @@ interface Chapter {
 interface Attributes {
   title?: string;
   history?: string;
-  admission_price?: string | null;
   rating?: number | null;
   main_image_url?: string | null;
   chapters?: Chapter[];
@@ -147,7 +146,6 @@ const AttributesShow: React.FC<ShowPropertyProps> = ({ record }) => {
             {attributes?.rating != null ? (
               <Pill>★ {attributes.rating}</Pill>
             ) : null}
-            <Pill>{attributes?.admission_price || 'Tarif inconnu'}</Pill>
           </Box>
           <Text color="grey80">{attributes?.history}</Text>
         </Box>

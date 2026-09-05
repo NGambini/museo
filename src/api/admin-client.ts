@@ -15,6 +15,7 @@ export interface AdminAudioguide {
   id: string;
   placeId: string;
   placeName: string;
+  city: string | null;
   latitude: number;
   longitude: number;
   lang: string;

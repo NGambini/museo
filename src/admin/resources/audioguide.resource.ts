@@ -7,6 +7,7 @@ import { adminApi, type AdminAudioguide } from '../../api/admin-client.js';
 /** Columns the API accepts in a PATCH. Anything else is dropped. */
 const EDITABLE_FIELDS = [
   'placeName',
+  'city',
   'placeId',
   'lang',
   'latitude',
@@ -19,23 +20,25 @@ const audioguideResourceInstance = new ApiResource<AdminAudioguide>({
   properties: [
     new BaseProperty({ path: 'id', type: 'uuid', isId: true, position: 0 }),
     new BaseProperty({ path: 'placeName', type: 'string', position: 1 }),
-    new BaseProperty({ path: 'placeId', type: 'string', position: 2 }),
-    new BaseProperty({ path: 'lang', type: 'string', position: 3 }),
-    new BaseProperty({ path: 'latitude', type: 'float', position: 4 }),
-    new BaseProperty({ path: 'longitude', type: 'float', position: 5 }),
+    new BaseProperty({ path: 'city', type: 'string', position: 2 }),
+    new BaseProperty({ path: 'placeId', type: 'string', position: 3 }),
+    new BaseProperty({ path: 'lang', type: 'string', position: 4 }),
+    new BaseProperty({ path: 'latitude', type: 'float', position: 5 }),
+    new BaseProperty({ path: 'longitude', type: 'float', position: 6 }),
     // `mixed` keeps AdminJS from trying to render the jsonb as a scalar; the
     // custom components take over anyway.
     new BaseProperty({
       path: 'attributes',
       type: 'mixed',
       isSortable: false,
-      position: 6,
+      position: 7,
     }),
-    new BaseProperty({ path: 'createdAt', type: 'datetime', position: 7 }),
-    new BaseProperty({ path: 'updatedAt', type: 'datetime', position: 8 }),
+    new BaseProperty({ path: 'createdAt', type: 'datetime', position: 8 }),
+    new BaseProperty({ path: 'updatedAt', type: 'datetime', position: 9 }),
   ],
   filterParams: {
     placeName: 'place_name',
+    city: 'city',
     placeId: 'place_id',
     lang: 'lang',
   },
@@ -96,10 +99,11 @@ export const audioguideResource: ResourceWithOptions = {
     // sidebar entry while keeping its icon. Without it, AdminJS creates a group
     // holding nothing but this resource — two levels for no reason.
     navigation: { name: null, icon: 'Headphones' },
-    listProperties: ['placeName', 'lang', 'placeId', 'createdAt'],
-    filterProperties: ['placeName', 'placeId', 'lang'],
+    listProperties: ['placeName', 'city', 'lang', 'placeId', 'createdAt'],
+    filterProperties: ['placeName', 'city', 'placeId', 'lang'],
     showProperties: [
       'placeName',
+      'city',
       'placeId',
       'lang',
       'latitude',
@@ -110,6 +114,7 @@ export const audioguideResource: ResourceWithOptions = {
     ],
     editProperties: [
       'placeName',
+      'city',
       'placeId',
       'lang',
       'latitude',
@@ -125,6 +130,10 @@ export const audioguideResource: ResourceWithOptions = {
         description: 'Identifiant Google Places. Clé du cache avec la langue.',
       },
       placeName: { isTitle: true },
+      city: {
+        description:
+          'Renseignée automatiquement à la génération, depuis Google Places.',
+      },
       lang: {
         availableValues: [
           { value: 'fr', label: 'Français' },

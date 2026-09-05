@@ -63,6 +63,7 @@ export const frTranslations: LocaleTranslations = {
     from: 'De',
     to: 'À',
     placeName: 'Lieu',
+    city: 'Ville',
     placeId: 'Google Place ID',
     lang: 'Langue',
     latitude: 'Latitude',
