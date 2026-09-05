@@ -16,7 +16,9 @@ import {
 } from '@nestjs/swagger';
 import { Request as ExpressRequest } from 'express';
 import { AuthService } from './auth.service';
-import { SignupDto } from './dto/signup.dto';
+// Commented out alongside the signup route below, so re-enabling one
+// re-enables the other.
+// import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
@@ -35,16 +37,21 @@ interface RefreshRequest extends ExpressRequest {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('signup')
-  @ApiOperation({ summary: 'Register a new user' })
-  @ApiResponse({
-    status: 201,
-    description: 'Returns access_token and refresh_token',
-  })
-  @ApiResponse({ status: 409, description: 'Email already in use' })
-  signup(@Body() dto: SignupDto) {
-    return this.authService.signup(dto.email, dto.password);
-  }
+  // Self-service registration is closed: the app is meant to work without an
+  // account, and the only accounts that matter are the admin ones, created by
+  // hand (see docs/comptes-admin.md). AuthService.signup is left untouched so
+  // re-enabling this is a matter of uncommenting the route.
+  //
+  // @Post('signup')
+  // @ApiOperation({ summary: 'Register a new user' })
+  // @ApiResponse({
+  //   status: 201,
+  //   description: 'Returns access_token and refresh_token',
+  // })
+  // @ApiResponse({ status: 409, description: 'Email already in use' })
+  // signup(@Body() dto: SignupDto) {
+  //   return this.authService.signup(dto.email, dto.password);
+  // }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)

@@ -56,7 +56,12 @@ export class UsersService {
       take: limit,
     });
 
-    return { items: items.map(AdminUser.from), total, page, limit };
+    return {
+      items: items.map((user) => AdminUser.from(user)),
+      total,
+      page,
+      limit,
+    };
   }
 
   async findOneForAdmin(id: string): Promise<AdminUser> {

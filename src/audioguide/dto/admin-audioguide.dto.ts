@@ -18,6 +18,7 @@ export const ADMIN_MAX_PAGE_SIZE = 200;
 /** Columns the backoffice is allowed to sort on. Anything else is rejected. */
 export const SORTABLE_FIELDS = [
   'placeName',
+  'city',
   'placeId',
   'lang',
   'createdAt',
@@ -52,6 +53,11 @@ export class AdminListAudioguidesQueryDto {
   @IsOptional()
   place_name?: string;
 
+  @ApiPropertyOptional({ description: 'Case-insensitive partial match' })
+  @IsString()
+  @IsOptional()
+  city?: string;
+
   @ApiPropertyOptional({ example: 'fr' })
   @IsString()
   @IsOptional()
@@ -78,6 +84,11 @@ export class UpdateAudioguideDto {
   @IsString()
   @IsOptional()
   placeId?: string;
+
+  @ApiPropertyOptional({ example: 'Paris', nullable: true })
+  @IsString()
+  @IsOptional()
+  city?: string | null;
 
   @ApiPropertyOptional({ example: 'fr' })
   @IsString()

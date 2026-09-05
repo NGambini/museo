@@ -14,6 +14,13 @@ export class Audioguide extends BaseEntity {
   @Column()
   placeName: string;
 
+  // Filled from the Google Places address components at generation time.
+  // Nullable: some place ids resolve to no locality at all, and the older rows
+  // predate this column.
+  @ApiProperty({ example: 'Paris', nullable: true })
+  @Column({ type: 'varchar', nullable: true })
+  city: string | null;
+
   @ApiProperty({ example: 48.8584 })
   @Column({ type: 'float' })
   latitude: number;

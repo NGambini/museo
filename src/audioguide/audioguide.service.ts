@@ -74,6 +74,7 @@ export class AudioguideService {
         'id',
         'placeId',
         'placeName',
+        'city',
         'latitude',
         'longitude',
         'lang',
@@ -104,6 +105,7 @@ export class AudioguideService {
     if (query.lang) where.lang = query.lang;
     if (query.place_id) where.placeId = query.place_id;
     if (query.place_name) where.placeName = ILike(`%${query.place_name}%`);
+    if (query.city) where.city = ILike(`%${query.city}%`);
 
     const [items, total] = await this.audioguideRepository.findAndCount({
       where,
@@ -277,14 +279,14 @@ export class AudioguideService {
   ): Promise<PlaceDetails> {
     try {
       const res = await fetch(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=name,geometry,rating,photos&key=${process.env.GOOGLE_PLACES_API_KEY}`,
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=name,geometry,rating,photos,address_components&key=${process.env.GOOGLE_PLACES_API_KEY}`,
       );
       const data = (await res.json()) as PlacesApiRawData;
-      const { placeName, latitude, longitude, rating, photoReferences } =
+      const { placeName, city, latitude, longitude, rating, photoReferences } =
         parsePlacesApiResponse(data);
 
       console.log(
-        `Google Places OK: ${placeName} (${photoReferences.length} photos)`,
+        `Google Places OK: ${placeName}${city ? `, ${city}` : ''} (${photoReferences.length} photos)`,
       );
 
       const mainImagePath = await this.uploadMainPhoto(
@@ -296,6 +298,7 @@ export class AudioguideService {
 
       return {
         placeName,
+        city,
         latitude,
         longitude,
         rating,
@@ -556,6 +559,7 @@ export class AudioguideService {
       const audioguide = this.audioguideRepository.create({
         placeId,
         placeName: placeDetails.placeName,
+        city: placeDetails.city,
         latitude: placeDetails.latitude,
         longitude: placeDetails.longitude,
         lang,

@@ -103,11 +103,38 @@ export interface PlacesApiRawData {
     geometry: { location: { lat: number; lng: number } };
     rating?: number;
     photos?: Array<{ photo_reference: string }>;
+    address_components?: Array<{ long_name: string; types: string[] }>;
   };
+}
+
+/**
+ * Address component types that stand for "the city", in the order we trust
+ * them. `locality` is the usual answer; `postal_town` covers the UK, where
+ * Google omits the locality; the two administrative levels are the last resort
+ * for places sitting outside any town.
+ */
+const CITY_COMPONENT_TYPES = [
+  'locality',
+  'postal_town',
+  'administrative_area_level_2',
+  'administrative_area_level_1',
+] as const;
+
+export function extractCity(
+  components: Array<{ long_name: string; types: string[] }> = [],
+): string | null {
+  for (const type of CITY_COMPONENT_TYPES) {
+    const match = components.find((component) =>
+      component.types.includes(type),
+    );
+    if (match?.long_name) return match.long_name;
+  }
+  return null;
 }
 
 export interface ParsedPlacesData {
   placeName: string;
+  city: string | null;
   latitude: number;
   longitude: number;
   rating: number | null;
@@ -124,6 +151,7 @@ export function parsePlacesApiResponse(
   }
   return {
     placeName: data.result.name,
+    city: extractCity(data.result.address_components),
     latitude: data.result.geometry.location.lat,
     longitude: data.result.geometry.location.lng,
     rating: data.result.rating ?? null,
@@ -184,7 +212,6 @@ export function buildAudioguideAttributes(
   return {
     main_image_url: placeDetails.mainImagePath ?? null,
     rating: placeDetails.rating,
-    admission_price: geminiResult.admission_price,
     title: geminiResult.title,
     history: geminiResult.history,
     chapters: geminiResult.chapters,

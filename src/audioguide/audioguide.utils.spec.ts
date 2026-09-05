@@ -5,6 +5,7 @@ import {
   validateGeminiResult,
   parseGeminiText,
   parsePlacesApiResponse,
+  extractCity,
   buildAudioguideAttributes,
   replaceAttributePathsWithUrls,
   isRetryableGeminiError,
@@ -21,7 +22,6 @@ const makeValidGeminiResult = (
 ): GeminiResult => ({
   title: 'Tour Eiffel pour les enfants',
   history: 'La Tour Eiffel a été construite en 1889.',
-  admission_price: '15€',
   chapters: [
     {
       chapter_number: 1,
@@ -55,6 +55,7 @@ const makePlaceDetails = (
   overrides: Partial<PlaceDetails> = {},
 ): PlaceDetails => ({
   placeName: 'Tour Eiffel',
+  city: 'Paris',
   latitude: 48.8584,
   longitude: 2.2945,
   rating: 4.5,
@@ -288,7 +289,6 @@ describe('buildAudioguideAttributes', () => {
 
     expect(attrs.main_image_url).toBe(placeDetails.mainImagePath);
     expect(attrs.rating).toBe(placeDetails.rating);
-    expect(attrs.admission_price).toBe(geminiResult.admission_price);
     expect(attrs.title).toBe(geminiResult.title);
     expect(attrs.history).toBe(geminiResult.history);
     expect(attrs.chapters).toBe(geminiResult.chapters);
@@ -475,5 +475,69 @@ describe('retryWithBackoff', () => {
 
     await expect(promise).resolves.toBe('ok');
     expect(fn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('extractCity', () => {
+  const component = (long_name: string, ...types: string[]) => ({
+    long_name,
+    types,
+  });
+
+  it('prefers the locality', () => {
+    expect(
+      extractCity([
+        component('Île-de-France', 'administrative_area_level_1', 'political'),
+        component('Paris', 'locality', 'political'),
+      ]),
+    ).toBe('Paris');
+  });
+
+  it('falls back to postal_town where Google omits the locality (UK)', () => {
+    expect(
+      extractCity([
+        component('Greater London', 'administrative_area_level_2'),
+        component('London', 'postal_town'),
+      ]),
+    ).toBe('London');
+  });
+
+  it('falls back to an administrative area for places outside any town', () => {
+    expect(
+      extractCity([component('Drôme', 'administrative_area_level_2')]),
+    ).toBe('Drôme');
+  });
+
+  it('returns null rather than guessing when no component qualifies', () => {
+    expect(extractCity([component('France', 'country')])).toBeNull();
+    expect(extractCity([])).toBeNull();
+    expect(extractCity()).toBeNull();
+  });
+});
+
+describe('parsePlacesApiResponse city extraction', () => {
+  it('reads the city from the address components', () => {
+    const parsed = parsePlacesApiResponse({
+      status: 'OK',
+      result: {
+        name: 'Tour Eiffel',
+        geometry: { location: { lat: 48.8584, lng: 2.2945 } },
+        address_components: [
+          { long_name: 'Paris', types: ['locality', 'political'] },
+        ],
+      },
+    });
+    expect(parsed.city).toBe('Paris');
+  });
+
+  it('leaves the city null when Places returns no components', () => {
+    const parsed = parsePlacesApiResponse({
+      status: 'OK',
+      result: {
+        name: 'Nowhere',
+        geometry: { location: { lat: 0, lng: 0 } },
+      },
+    });
+    expect(parsed.city).toBeNull();
   });
 });

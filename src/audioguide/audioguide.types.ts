@@ -13,13 +13,13 @@ export interface GeminiChapter {
 
 export interface GeminiResult {
   title: string;
-  admission_price: string | null;
   history: string;
   chapters: GeminiChapter[];
 }
 
 export interface PlaceDetails {
   placeName: string;
+  city: string | null;
   latitude: number;
   longitude: number;
   rating: number | null;

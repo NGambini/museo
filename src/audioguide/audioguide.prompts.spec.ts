@@ -20,7 +20,6 @@ describe('buildAudioguidePrompt', () => {
   it('contains the expected JSON template', () => {
     const prompt = buildAudioguidePrompt('Versailles', 'fr');
     expect(prompt).toContain('"title"');
-    expect(prompt).toContain('"admission_price"');
     expect(prompt).toContain('"history"');
     expect(prompt).toContain('"chapters"');
     expect(prompt).toContain('"chapter_number"');

@@ -31,16 +31,17 @@ import { Audioguide } from './audioguide.entity';
 import { TimeoutInterceptor } from '../common/interceptors/timeout.interceptor';
 import { trackByUserOrIp } from '../common/guards/track-by-user.util';
 
+// No class-level guard: reading the catalogue is open so the app works without
+// an account. Only generation is gated, on the route itself.
 @ApiTags('Audioguides')
-@ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('audioguides')
 export class AudioguideController {
   constructor(private readonly audioguideService: AudioguideService) {}
 
   @Post('generate')
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard, RolesGuard, ThrottlerGuard)
   @Roles(UserRole.ADMIN)
-  @UseGuards(ThrottlerGuard)
   @Throttle({
     default: { limit: 5, ttl: 3_600_000, getTracker: trackByUserOrIp },
   })
@@ -61,7 +62,9 @@ export class AudioguideController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List the shared audioguide catalogue' })
+  @ApiOperation({
+    summary: 'List the shared audioguide catalogue (no authentication)',
+  })
   @ApiResponse({ status: 200, type: PaginatedAudioguides })
   findAll(
     @Query() query: ListAudioguidesQueryDto,
@@ -74,7 +77,10 @@ export class AudioguideController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a single audioguide by id' })
+  @ApiOperation({
+    summary:
+      'Get a single audioguide by id, media included (no authentication)',
+  })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, type: Audioguide })
   @ApiResponse({ status: 404, description: 'Not found' })

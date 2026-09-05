@@ -13,6 +13,9 @@ export class AudioguideSummary {
   @ApiProperty({ example: 'Eiffel Tower' })
   placeName: string;
 
+  @ApiProperty({ example: 'Paris', nullable: true })
+  city: string | null;
+
   @ApiProperty({ example: 48.8584 })
   latitude: number;
 
