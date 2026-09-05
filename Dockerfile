@@ -14,13 +14,10 @@ ENV NODE_ENV=production
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev --legacy-peer-deps && npm cache clean --force
+# dist/ holds the server AND the React components AdminJS bundles for the
+# browser; public/ holds the logo and the injected stylesheet. Nothing else is
+# needed at runtime.
 COPY --from=build /app/dist ./dist
-
-# AdminJS bundles the React components from SOURCE at startup: the component
-# loader points at src/components, and public/ holds the logo and the injected
-# stylesheet. Shipping dist alone makes the process exit on boot with
-# "Trying to bundle file ... but it doesn't exist" — a crash loop on Cloud Run.
-COPY --from=build /app/src/components ./src/components
 COPY --from=build /app/public ./public
 
 USER node

@@ -159,7 +159,7 @@ d'AdminJS fait patiner le résolveur d'npm pendant plusieurs minutes sans lui.
 
 | Script | Effet |
 |---|---|
-| `npm run dev` | Serveur en watch (tsx), composants recompilés à chaud. |
+| `npm run dev` | `tsc --watch` + `node --watch` en parallèle. |
 | `npm run build` | Compile TypeScript vers `dist/`. |
 | `npm start` | Lance `dist/` (pose `NODE_ENV=production` pour figer le bundle). |
 | `npm run types:api` | Regénère les types depuis `openapi.json`. |
@@ -177,10 +177,15 @@ Les versions sont épinglées, et pas par excès de prudence :
   tire sinon des extensions 2.27 sur un core 2.1, et l'app plante au démarrage
   sur un export manquant.
 
-Les entités héritent de `BaseEntity` (Active Record) : `@adminjs/typeorm`
-reconnaît ses ressources en appelant `getRepository()` sur la classe. Leurs
-colonnes déclarent un `type` explicite, parce que `tsx` (esbuild) n'émet pas les
-métadonnées de décorateurs dont TypeORM se sert sinon pour les inférer.
+Les composants React sont compilés par `tsc` comme le reste du serveur, et
+AdminJS les bundle depuis `dist/components`. Un seul outil de compilation, un
+seul répertoire de sortie : `dist/` contient tout ce dont l'application a besoin
+à l'exécution.
+
+Le `jsx` du tsconfig est réglé sur `react` (runtime classique) et non
+`react-jsx` : ce dernier fait émettre un import de `react/jsx-runtime`, que le
+bundler d'AdminJS ne traite pas comme externe — il embarquerait un second React
+dans le bundle navigateur.
 
 ## Limites connues
 
@@ -198,14 +203,13 @@ métadonnées de décorateurs dont TypeORM se sert sinon pour les inférer.
 ## Déploiement
 
 `Dockerfile` + `cloudbuild.yaml` déploient sur Cloud Run, sur le modèle de
-l'API. Un point diffère et il est piégeux : l'image finale doit contenir
-`dist/` **et** `src/components/` **et** `public/`. AdminJS bundle les composants
-React depuis les sources au démarrage ; sans eux le process sort immédiatement
-sur `Trying to bundle file ... but it doesn't exist`, soit un crash-loop.
+l'API : l'image finale contient `dist/` et `public/`, rien d'autre.
 
-`npm ci --omit=dev` suffit : les dépendances du bundler (`@babel/preset-typescript`,
-`rollup-plugin-esbuild-minify`) sont des dépendances de production d'AdminJS.
-Démarrage à froid mesuré à ~2 s, bundling compris.
+`npm ci --omit=dev` suffit — les dépendances du bundler
+(`@babel/preset-typescript`, `rollup-plugin-esbuild-minify`) sont des
+dépendances de production d'AdminJS. Le bundle navigateur est construit au
+démarrage, mesuré à ~2 s à froid ; `ADMIN_JS_SKIP_BUNDLE=true` permettrait de le
+pré-construire au build si ça devenait gênant.
 
 Le service n'a besoin ni de Cloud SQL ni du mot de passe de la base. Variables à
 poser sur le service : `API_BASE_URL`, `JWT_ACCESS_SECRET` (le même que l'API,

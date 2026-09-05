@@ -5,7 +5,7 @@
   "type": "module",
   "description": "AdminJS backoffice for the audioguide API",
   "scripts": {
-    "dev": "tsx watch --clear-screen=false src/index.ts",
+    "dev": "concurrently -k -n tsc,server \"tsc -p tsconfig.json --watch --preserveWatchOutput\" \"node --watch dist/index.js\"",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "types:api": "openapi-typescript openapi.json -o src/types/api.ts",
@@ -35,9 +35,9 @@
     "@types/node": "^26.4.1",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
+    "concurrently": "^10.0.5",
     "openapi-typescript": "^7.13.0",
     "prettier": "^3.9.6",
-    "tsx": "^4.23.13",
     "typescript": "^5.9.3"
   },
   "overrides": {
