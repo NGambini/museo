@@ -1,0 +1,41 @@
+/*
+ * Retouches sur les composants d'AdminJS que ni `branding.theme` ni les props
+ * ne permettent d'atteindre. Injecté via `assets.styles`.
+ */
+
+/* ── Boutons d'action des fiches ────────────────────────────────────────────
+ * AdminJS rend « Consulter / Modifier / Supprimer » en contour : fond
+ * transparent, texte et bordure de la couleur sémantique. On les remplit.
+ *
+ * `currentColor` fait tout le travail pour le fond : il reprend la couleur
+ * propre de chaque bouton — orange pour Modifier, rouge pour Supprimer — sans
+ * qu'on ait à réénumérer la palette ici.
+ *
+ * D'où `-webkit-text-fill-color` plutôt que `color` pour le libellé : celui-ci
+ * est un nœud texte nu, impossible à cibler par un sélecteur, et redéfinir
+ * `color` changerait du même coup `currentColor`, donc le fond. Cette
+ * propriété-là peint le texte sans toucher à la couleur calculée. Seule
+ * l'icône est dans un <span>, elle se colore normalement.
+ *
+ * Portée limitée à `.adminjs_ActionHeader` volontairement : les mêmes classes
+ * servent aux menus « … » des lignes de liste et au bouton « Filtrer », qui
+ * n'ont pas de bordure visible et deviendraient des pavés pleins.
+ */
+.adminjs_ActionHeader .adminjs_ButtonGroupItem,
+.adminjs_ActionHeader .adminjs_ButtonGroupItem:hover,
+.adminjs_ActionHeader .adminjs_ButtonGroupItem:focus,
+.adminjs_ActionHeader .adminjs_ButtonGroupItem:active {
+  background-color: currentColor;
+  border-color: currentColor;
+  -webkit-text-fill-color: #fffdf5;
+}
+
+.adminjs_ActionHeader .adminjs_ButtonGroupItem:hover {
+  filter: brightness(0.92);
+}
+
+.adminjs_ActionHeader .adminjs_ButtonGroupItem .adminjs_Icon,
+.adminjs_ActionHeader .adminjs_ButtonGroupItem svg {
+  color: #fffdf5;
+  stroke: #fffdf5;
+}
