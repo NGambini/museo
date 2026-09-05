@@ -48,6 +48,7 @@ const mockRepository = {
   create: jest.fn(),
   save: jest.fn(),
   remove: jest.fn(),
+  createQueryBuilder: jest.fn(),
 };
 
 const makeAudioguide = (overrides: Partial<Audioguide> = {}): Audioguide =>
@@ -141,6 +142,97 @@ describe('AudioguideService', () => {
       await service.findAll(1, 20);
 
       expect(mockGetSignedUrl).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('admin surface', () => {
+    it('keeps raw GCS paths — signing here would be written back on save', async () => {
+      mockRepository.findAndCount.mockResolvedValue([
+        [
+          makeAudioguide({
+            attributes: { chapters: [{ audio_url: 'a/b.mp3' }] },
+          }),
+        ],
+        1,
+      ]);
+
+      const result = await service.findAllForAdmin({});
+
+      expect(mockGetSignedUrl).not.toHaveBeenCalled();
+      expect(result.items[0].attributes).toEqual({
+        chapters: [{ audio_url: 'a/b.mp3' }],
+      });
+    });
+
+    it('translates filters and sorting into the query', async () => {
+      mockRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await service.findAllForAdmin({
+        lang: 'en',
+        place_id: 'place-123',
+        place_name: 'eiffel',
+        sort_by: 'placeName',
+        direction: 'asc',
+        page: 3,
+        limit: 10,
+      });
+
+      const [options] = mockRepository.findAndCount.mock.calls.at(0) as [
+        {
+          where: Record<string, unknown>;
+          order: Record<string, string>;
+          skip: number;
+          take: number;
+        },
+      ];
+      expect(options.where.lang).toBe('en');
+      expect(options.where.placeId).toBe('place-123');
+      expect(options.order).toEqual({ placeName: 'asc' });
+      expect(options.skip).toBe(20);
+      expect(options.take).toBe(10);
+    });
+
+    it('leaves untouched columns alone when the patch omits them', async () => {
+      const existing = makeAudioguide();
+      mockRepository.findOne.mockResolvedValue(existing);
+      mockRepository.save.mockResolvedValue(existing);
+
+      // The validation pipe hands over a DTO whose absent fields are present
+      // but undefined; assigning it wholesale would blank those columns.
+      await service.update('ag-uuid', {
+        placeName: 'Renamed',
+        placeId: undefined,
+        attributes: undefined,
+      });
+
+      const [saved] = mockRepository.save.mock.calls.at(0) as [
+        { placeName: string; placeId: string; attributes: unknown },
+      ];
+      expect(saved.placeName).toBe('Renamed');
+      expect(saved.placeId).toBe('place-123');
+      expect(saved.attributes).toEqual({});
+    });
+
+    it('throws NotFoundException when deleting an unknown id', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
+      await expect(service.remove('nope')).rejects.toThrow(NotFoundException);
+      expect(mockRepository.remove).not.toHaveBeenCalled();
+    });
+
+    it('reports the cap the API actually enforces', async () => {
+      mockRepository.count.mockResolvedValue(7);
+      mockRepository.createQueryBuilder.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([{ lang: 'fr', count: '7' }]),
+      });
+
+      const stats = await service.stats();
+
+      expect(stats.dailyCap).toBe(100);
+      expect(stats.byLang).toEqual([{ lang: 'fr', count: 7 }]);
     });
   });
 

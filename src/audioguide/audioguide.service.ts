@@ -5,7 +5,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import { ILike, MoreThanOrEqual, Repository } from 'typeorm';
 import { Storage, Bucket } from '@google-cloud/storage';
 import { v1beta1, protos } from '@google-cloud/text-to-speech';
 import { GoogleGenAI } from '@google/genai';
@@ -13,6 +13,12 @@ import { Audioguide } from './audioguide.entity';
 import { GeminiChapter, GeminiResult, PlaceDetails } from './audioguide.types';
 import { buildAudioguidePrompt } from './audioguide.prompts';
 import { PaginatedAudioguides } from './dto/audioguide-summary.dto';
+import {
+  AdminListAudioguidesQueryDto,
+  AdminPaginatedAudioguides,
+  AudioguideStats,
+  UpdateAudioguideDto,
+} from './dto/admin-audioguide.dto';
 import {
   buildMainImagePath,
   buildChapterImagePath,
@@ -80,6 +86,94 @@ export class AudioguideService {
     });
 
     return { items, total, page, limit };
+  }
+
+  // ── Admin surface ───────────────────────────────────────────────────────────
+  // Everything below is reached through /admin/audioguides and returns rows as
+  // they are stored: `attributes` keeps its raw GCS paths instead of signed
+  // URLs. The backoffice edits these rows, and writing a signed URL back into
+  // the column would break playback as soon as the signature expires.
+
+  async findAllForAdmin(
+    query: AdminListAudioguidesQueryDto,
+  ): Promise<AdminPaginatedAudioguides> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    const where: Record<string, unknown> = {};
+    if (query.lang) where.lang = query.lang;
+    if (query.place_id) where.placeId = query.place_id;
+    if (query.place_name) where.placeName = ILike(`%${query.place_name}%`);
+
+    const [items, total] = await this.audioguideRepository.findAndCount({
+      where,
+      order: { [query.sort_by ?? 'createdAt']: query.direction ?? 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return { items, total, page, limit };
+  }
+
+  async findOneRaw(id: string): Promise<Audioguide> {
+    const audioguide = await this.audioguideRepository.findOne({
+      where: { id },
+    });
+    if (!audioguide) throw new NotFoundException('Audioguide not found');
+    return audioguide;
+  }
+
+  async update(id: string, dto: UpdateAudioguideDto): Promise<Audioguide> {
+    const audioguide = await this.findOneRaw(id);
+
+    // The validation pipe hands back a DTO instance whose absent optional
+    // fields are present but `undefined`. Assigning it wholesale would overwrite
+    // every column the caller did not send. TypeORM happens to skip `undefined`
+    // when building the UPDATE, so nothing is lost today — but that is a quirk
+    // to lean on, not a guarantee, and it also truncates the entity we return.
+    const patch = Object.fromEntries(
+      Object.entries(dto).filter(([, value]) => value !== undefined),
+    );
+    Object.assign(audioguide, patch);
+    await this.audioguideRepository.save(audioguide);
+
+    // Re-read rather than returning what `save` hands back: it only echoes the
+    // columns it touched, so the caller would get a truncated record.
+    return this.findOneRaw(id);
+  }
+
+  async remove(id: string): Promise<void> {
+    const audioguide = await this.findOneRaw(id);
+    await this.audioguideRepository.remove(audioguide);
+  }
+
+  async stats(): Promise<AudioguideStats> {
+    const startOfDayUtc = new Date();
+    startOfDayUtc.setUTCHours(0, 0, 0, 0);
+
+    const [total, generatedToday, byLangRows] = await Promise.all([
+      this.audioguideRepository.count(),
+      this.audioguideRepository.count({
+        where: { createdAt: MoreThanOrEqual(startOfDayUtc) },
+      }),
+      this.audioguideRepository
+        .createQueryBuilder('a')
+        .select('a.lang', 'lang')
+        .addSelect('COUNT(*)', 'count')
+        .groupBy('a.lang')
+        .orderBy('count', 'DESC')
+        .getRawMany<{ lang: string; count: string }>(),
+    ]);
+
+    return {
+      total,
+      generatedToday,
+      dailyCap: MAX_GENERATIONS_PER_DAY,
+      byLang: byLangRows.map((row) => ({
+        lang: row.lang,
+        count: Number(row.count),
+      })),
+    };
   }
 
   async generate(placeId: string, lang: string): Promise<Audioguide> {

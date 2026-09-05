@@ -1,7 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { User } from './user.entity';
+import { UserRole } from './user-role.enum';
+import {
+  AdminListUsersQueryDto,
+  AdminPaginatedUsers,
+  AdminUser,
+} from './dto/admin-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -26,6 +32,41 @@ export class UsersService {
       password: hashedPassword,
     });
     return this.usersRepository.save(user);
+  }
+
+  // ── Admin surface ───────────────────────────────────────────────────────────
+  // Reached through /admin/users. Rows are mapped to AdminUser before leaving
+  // the service: the entity carries `password` and `refreshToken`, which must
+  // never reach a client.
+
+  async findAllForAdmin(
+    query: AdminListUsersQueryDto,
+  ): Promise<AdminPaginatedUsers> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    const where: Record<string, unknown> = {};
+    if (query.role) where.role = query.role;
+    if (query.email) where.email = ILike(`%${query.email}%`);
+
+    const [items, total] = await this.usersRepository.findAndCount({
+      where,
+      order: { [query.sort_by ?? 'createdAt']: query.direction ?? 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return { items: items.map(AdminUser.from), total, page, limit };
+  }
+
+  async findOneForAdmin(id: string): Promise<AdminUser> {
+    return AdminUser.from(await this.findById(id));
+  }
+
+  async updateRole(id: string, role: UserRole): Promise<AdminUser> {
+    const user = await this.findById(id);
+    user.role = role;
+    return AdminUser.from(await this.usersRepository.save(user));
   }
 
   async updateRefreshToken(
