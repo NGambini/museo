@@ -12,6 +12,7 @@ import { GoogleGenAI } from '@google/genai';
 import { Audioguide } from './audioguide.entity';
 import { GeminiChapter, GeminiResult, PlaceDetails } from './audioguide.types';
 import { buildAudioguidePrompt } from './audioguide.prompts';
+import { PaginatedAudioguides } from './dto/audioguide-summary.dto';
 import {
   buildMainImagePath,
   buildChapterImagePath,
@@ -54,6 +55,33 @@ export class AudioguideService {
     });
     if (!audioguide) throw new NotFoundException('Audioguide not found');
     return this.withSignedUrls(audioguide);
+  }
+
+  // Catalogue paginé, ouvert à tous les comptes authentifiés : c'est le seul
+  // moyen pour un compte `user` de découvrir ce qui existe, la génération lui
+  // étant fermée.
+  async findAll(
+    page: number,
+    limit: number,
+    lang?: string,
+  ): Promise<PaginatedAudioguides> {
+    const [items, total] = await this.audioguideRepository.findAndCount({
+      select: [
+        'id',
+        'placeId',
+        'placeName',
+        'latitude',
+        'longitude',
+        'lang',
+        'createdAt',
+      ],
+      where: lang ? { lang } : {},
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return { items, total, page, limit };
   }
 
   async generate(placeId: string, lang: string): Promise<Audioguide> {

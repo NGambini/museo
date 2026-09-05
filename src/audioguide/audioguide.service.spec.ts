@@ -42,6 +42,7 @@ jest.mock('@google/genai', () => ({
 
 const mockRepository = {
   find: jest.fn(),
+  findAndCount: jest.fn(),
   findOne: jest.fn(),
   count: jest.fn(),
   create: jest.fn(),
@@ -100,6 +101,46 @@ describe('AudioguideService', () => {
       const result = await service.findOne('ag-uuid');
 
       expect(result.placeId).toBe('place-123');
+    });
+  });
+
+  describe('findAll', () => {
+    it('paginates the catalogue and reports the total', async () => {
+      mockRepository.findAndCount.mockResolvedValue([[makeAudioguide()], 42]);
+
+      const result = await service.findAll(3, 20);
+
+      expect(result).toEqual({
+        items: [makeAudioguide()],
+        total: 42,
+        page: 3,
+        limit: 20,
+      });
+      const [options] = mockRepository.findAndCount.mock.calls.at(0) as [
+        { skip: number; take: number; where: Record<string, unknown> },
+      ];
+      expect(options.skip).toBe(40);
+      expect(options.take).toBe(20);
+      expect(options.where).toEqual({});
+    });
+
+    it('filters by language when one is given', async () => {
+      mockRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await service.findAll(1, 20, 'en');
+
+      const [options] = mockRepository.findAndCount.mock.calls.at(0) as [
+        { where: Record<string, unknown> },
+      ];
+      expect(options.where).toEqual({ lang: 'en' });
+    });
+
+    it('does not sign any URL for the listing', async () => {
+      mockRepository.findAndCount.mockResolvedValue([[makeAudioguide()], 1]);
+
+      await service.findAll(1, 20);
+
+      expect(mockGetSignedUrl).not.toHaveBeenCalled();
     });
   });
 
