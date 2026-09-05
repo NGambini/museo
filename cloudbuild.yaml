@@ -41,8 +41,12 @@ steps:
       # Cold start measured at ~2 s including the AdminJS component bundling,
       # so there is no reason to keep an instance warm.
       - --min-instances=0
-    # Environment variables and secrets are configured once on the service
-    # itself; `gcloud run deploy` preserves anything it is not told to change.
+      - --set-env-vars=API_BASE_URL=${_API_BASE_URL}
+      # Values live in Secret Manager; only their names appear here. Declaring
+      # them on every deploy keeps the service reproducible and lets the very
+      # first one start — without them the process exits on a missing
+      # JWT_ACCESS_SECRET and the revision never turns healthy.
+      - --set-secrets=JWT_ACCESS_SECRET=${_JWT_SECRET_NAME}:latest,GOOGLE_PLACES_API_KEY=${_PLACES_SECRET_NAME}:latest
 
 # PROJECT_ID and SHORT_SHA are provided by Cloud Build. They are only expanded
 # inside a step's args, never inside a substitution — hence the full image path
@@ -52,6 +56,9 @@ substitutions:
   _REGION: europe-west1
   _REPO: audioguide
   _SA_NAME: audioguide-dev
+  _API_BASE_URL: https://audioguide-api-905248379551.europe-west1.run.app
+  _JWT_SECRET_NAME: jwt-access-secret
+  _PLACES_SECRET_NAME: google-places-api-key
 
 options:
   # Required as soon as a dedicated service account is used, otherwise the build

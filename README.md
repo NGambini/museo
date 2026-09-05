@@ -211,7 +211,10 @@ dépendances de production d'AdminJS. Le bundle navigateur est construit au
 démarrage, mesuré à ~2 s à froid ; `ADMIN_JS_SKIP_BUNDLE=true` permettrait de le
 pré-construire au build si ça devenait gênant.
 
-Le service n'a besoin ni de Cloud SQL ni du mot de passe de la base. Variables à
-poser sur le service : `API_BASE_URL`, `JWT_ACCESS_SECRET` (le même que l'API,
-via Secret Manager), `GOOGLE_PLACES_API_KEY`, et éventuellement
-`ALLOWED_ADMIN_EMAILS`.
+Le service n'a besoin ni de Cloud SQL ni du mot de passe de la base.
+
+`cloudbuild.yaml` pose lui-même `API_BASE_URL` et rattache les secrets
+`jwt-access-secret` et `google-places-api-key` : les deux doivent exister dans
+Secret Manager avant le premier build, sinon la révision ne démarre pas
+(`env.ts` lève sur `JWT_ACCESS_SECRET` manquant). Le service Cloud Run n'a pas à
+être créé à la main, `gcloud run deploy` s'en charge.
