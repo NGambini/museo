@@ -1,11 +1,55 @@
-import type {
-  ActionRequest,
-  ActionContext,
-  ResourceWithOptions,
-} from 'adminjs';
-import { ValidationError } from 'adminjs';
-import { Components, componentLoader } from '../component-loader.js';
-import { Audioguide } from '../../entities/audioguide.entity.js';
+import { BaseProperty, ValidationError } from 'adminjs';
+import type { ActionRequest, ResourceWithOptions } from 'adminjs';
+import { Components } from '../component-loader.js';
+import { ApiResource } from '../api-resource.js';
+import { adminApi, type AdminAudioguide } from '../../api/admin-client.js';
+
+/** Columns the API accepts in a PATCH. Anything else is dropped. */
+const EDITABLE_FIELDS = [
+  'placeName',
+  'placeId',
+  'lang',
+  'latitude',
+  'longitude',
+  'attributes',
+] as const;
+
+const audioguideResourceInstance = new ApiResource<AdminAudioguide>({
+  id: 'Audioguide',
+  properties: [
+    new BaseProperty({ path: 'id', type: 'uuid', isId: true, position: 0 }),
+    new BaseProperty({ path: 'placeName', type: 'string', position: 1 }),
+    new BaseProperty({ path: 'placeId', type: 'string', position: 2 }),
+    new BaseProperty({ path: 'lang', type: 'string', position: 3 }),
+    new BaseProperty({ path: 'latitude', type: 'float', position: 4 }),
+    new BaseProperty({ path: 'longitude', type: 'float', position: 5 }),
+    // `mixed` keeps AdminJS from trying to render the jsonb as a scalar; the
+    // custom components take over anyway.
+    new BaseProperty({
+      path: 'attributes',
+      type: 'mixed',
+      isSortable: false,
+      position: 6,
+    }),
+    new BaseProperty({ path: 'createdAt', type: 'datetime', position: 7 }),
+    new BaseProperty({ path: 'updatedAt', type: 'datetime', position: 8 }),
+  ],
+  filterParams: {
+    placeName: 'place_name',
+    placeId: 'place_id',
+    lang: 'lang',
+  },
+  list: (params) => adminApi.audioguides.list(params),
+  get: (id) => adminApi.audioguides.get(id),
+  update: (id, params) => {
+    const body: Record<string, unknown> = {};
+    for (const field of EDITABLE_FIELDS) {
+      if (params[field] !== undefined) body[field] = params[field];
+    }
+    return adminApi.audioguides.update(id, body);
+  },
+  remove: (id) => adminApi.audioguides.remove(id),
+});
 
 /**
  * The attributes editor sends the whole object serialised in `attributesJson`,
@@ -23,13 +67,13 @@ function normalizeAttributes(request: ActionRequest): ActionRequest {
     parsed = JSON.parse(raw);
   } catch (error) {
     throw new ValidationError({
-      attributes: { message: `JSON invalide : ${(error as Error).message}` },
+      attributes: { message: `Invalid JSON: ${(error as Error).message}` },
     });
   }
 
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     throw new ValidationError({
-      attributes: { message: 'La racine de attributes doit être un objet.' },
+      attributes: { message: 'The root of attributes must be an object.' },
     });
   }
 
@@ -45,7 +89,7 @@ function normalizeAttributes(request: ActionRequest): ActionRequest {
 }
 
 export const audioguideResource: ResourceWithOptions = {
-  resource: Audioguide,
+  resource: audioguideResourceInstance,
   options: {
     id: 'Audioguide',
     // `name: null` pulls the resource out of any group: it becomes a top-level
@@ -53,7 +97,7 @@ export const audioguideResource: ResourceWithOptions = {
     // holding nothing but this resource — two levels for no reason.
     navigation: { name: null, icon: 'Headphones' },
     listProperties: ['placeName', 'lang', 'placeId', 'createdAt'],
-    filterProperties: ['placeName', 'placeId', 'lang', 'createdAt'],
+    filterProperties: ['placeName', 'placeId', 'lang'],
     showProperties: [
       'placeName',
       'placeId',
@@ -78,7 +122,6 @@ export const audioguideResource: ResourceWithOptions = {
         isVisible: { list: false, show: true, edit: false, filter: false },
       },
       placeId: {
-        isTitle: false,
         description: 'Identifiant Google Places. Clé du cache avec la langue.',
       },
       placeName: { isTitle: true },
@@ -106,12 +149,8 @@ export const audioguideResource: ResourceWithOptions = {
         isAccessible: false,
       },
       edit: { before: normalizeAttributes },
-      delete: {
-        guard: 'Supprimer cet audioguide du catalogue partagé ?',
-      },
+      delete: { guard: 'Supprimer cet audioguide du catalogue partagé ?' },
       bulkDelete: { isAccessible: false },
     },
   },
 };
-
-export { componentLoader };

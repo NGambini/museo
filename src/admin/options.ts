@@ -1,16 +1,10 @@
-import AdminJS, { type AdminJSOptions } from 'adminjs';
-import * as AdminJSTypeorm from '@adminjs/typeorm';
+import { type AdminJSOptions } from 'adminjs';
 import { Components, componentLoader } from './component-loader.js';
 import { dashboardHandler } from './dashboard.js';
 import { frTranslations } from './locale-fr.js';
 import { branding } from './theme.js';
 import { audioguideResource } from './resources/audioguide.resource.js';
 import { userResource } from './resources/user.resource.js';
-
-AdminJS.registerAdapter({
-  Database: AdminJSTypeorm.Database,
-  Resource: AdminJSTypeorm.Resource,
-});
 
 export const adminOptions: AdminJSOptions = {
   rootPath: '/admin',

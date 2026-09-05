@@ -9,6 +9,7 @@ import {
   type JwtClaims,
 } from '../api/client.js';
 import { env } from '../config/env.js';
+import { requestContext } from '../api/request-context.js';
 
 /**
  * Stateless authentication.
@@ -152,7 +153,9 @@ export function requireAdminPage(admin: AdminJS) {
       );
     }
     attach(req, resolved);
-    next();
+    // Everything downstream runs inside the context, so the AdminJS resources
+    // can reach the tokens without being handed the request.
+    requestContext.run({ tokens: resolved.tokens, res }, () => next());
   };
 }
 
@@ -168,7 +171,7 @@ export async function requireAdminApi(
     return;
   }
   attach(req, resolved);
-  next();
+  requestContext.run({ tokens: resolved.tokens, res }, () => next());
 }
 
 // ── Login form ───────────────────────────────────────────────────────────────

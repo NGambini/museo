@@ -36,14 +36,6 @@ export const env = {
     '',
   ),
 
-  db: {
-    host: optional('DB_HOST', 'localhost'),
-    port: Number(optional('DB_PORT', '5432')),
-    username: required('DB_USER'),
-    password: required('DB_PASSWORD'),
-    database: required('DB_NAME'),
-  },
-
   googlePlacesApiKey: process.env.GOOGLE_PLACES_API_KEY ?? '',
   isProduction: process.env.NODE_ENV === 'production',
 } as const;

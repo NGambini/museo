@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import AdminJS from 'adminjs';
 import AdminJSExpress from '@adminjs/express';
 import cookieParser from 'cookie-parser';
@@ -13,14 +12,10 @@ import {
 import { adminOptions } from './admin/options.js';
 import { publicDir } from './config/paths.js';
 import { env } from './config/env.js';
-import { dataSource } from './db/data-source.js';
 import { boApiRouter } from './routes/bo-api.js';
 import './api/session.js';
 
 async function bootstrap(): Promise<void> {
-  await dataSource.initialize();
-  console.log(`Connected to ${env.db.database}@${env.db.host}:${env.db.port}`);
-
   const app = express();
   app.set('trust proxy', 1);
   app.use(cookieParser());

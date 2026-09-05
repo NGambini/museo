@@ -11,6 +11,7 @@ import {
   type GenerateAudioguideBody,
 } from '../api/client.js';
 import { setAuthCookies } from '../admin/auth.js';
+import { adminApi } from '../api/admin-client.js';
 import { env } from '../config/env.js';
 import '../api/session.js';
 
@@ -149,14 +150,13 @@ boApiRouter.get('/places/autocomplete', async (req, res) => {
 
 /** Tells whether a place_id is already in the catalogue, to warn before generating. */
 boApiRouter.get('/places/:placeId/existing', async (req, res) => {
-  const { placeId } = req.params;
-  const lang = String(req.query.lang ?? 'fr');
   try {
-    const { dataSource } = await import('../db/data-source.js');
-    const { Audioguide } = await import('../entities/audioguide.entity.js');
-    const existing = await dataSource
-      .getRepository(Audioguide)
-      .findOne({ where: { placeId, lang } });
+    const { items } = await adminApi.audioguides.list({
+      place_id: req.params.placeId,
+      lang: String(req.query.lang ?? 'fr'),
+      limit: 1,
+    });
+    const existing = items[0];
 
     res.json(
       existing

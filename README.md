@@ -16,15 +16,27 @@ Backoffice d'administration [AdminJS](https://adminjs.co) pour l'API
 
 ## Architecture
 
-Le backoffice s'appuie sur deux canaux, et c'est délibéré :
+**Tout passe par l'API NestJS.** Le backoffice n'a aucune connexion base de
+données, aucun credential Google Cloud, et n'a donc rien à savoir du schéma.
 
-| Besoin | Canal | Pourquoi |
-|---|---|---|
-| Lister / éditer / supprimer | **Postgres en direct** (TypeORM) | L'API n'expose aucun endpoint de mise à jour. Éditer `attributes` impose donc d'écrire en base. |
-| Générer, écouter les médias | **API NestJS** (HTTP) | L'API sait signer les URLs GCS et orchestrer Gemini + TTS. Rediriger ces appels vers elle évite de dupliquer cette logique et de porter des credentials Google ici. |
+Les ressources AdminJS ne sont pas adossées à un ORM mais à une implémentation
+maison de `BaseResource` ([`src/admin/api-resource.ts`](src/admin/api-resource.ts))
+qui traduit les appels d'AdminJS (`find`, `count`, `findOne`, `update`,
+`delete`) en requêtes HTTP vers `/admin/audioguides` et `/admin/users`. Ces
+endpoints sont protégés côté API par `@Roles(UserRole.ADMIN)`.
 
-`synchronize` est à `false` : le schéma appartient à l'API, le backoffice ne fait
-qu'écrire dans les tables existantes.
+Une subtilité : AdminJS ne transmet pas la requête Express à ses ressources, il
+n'y a donc aucun moyen de leur passer des identifiants en argument. Les jetons
+de l'admin connecté voyagent dans un `AsyncLocalStorage`
+([`src/api/request-context.ts`](src/api/request-context.ts)), ce qui attribue
+chaque appel à l'admin qui l'a déclenché plutôt qu'à un compte de service
+partagé.
+
+Les endpoints `/admin/*` renvoient les lignes telles que stockées : `attributes`
+y garde ses chemins GCS bruts. C'est indispensable pour l'édition — écrire une
+URL signée dans la colonne casserait la lecture à l'expiration de la signature.
+La lecture des médias passe, elle, par le `GET /audioguides/:id` public, qui
+signe les URLs.
 
 ### Authentification
 
@@ -72,7 +84,7 @@ Les composants React consomment `/bo-api/*`, monté **avant** le routeur AdminJS
 | `GET /bo-api/audioguides/:id/media` | Proxy vers `GET /audioguides/:id` — renvoie les `attributes` avec URLs signées. |
 | `POST /bo-api/generate` | Proxy vers `POST /audioguides/generate`. |
 | `GET /bo-api/places/autocomplete?q=` | Proxy Google Places. La clé reste côté serveur. |
-| `GET /bo-api/places/:placeId/existing` | Dit si le lieu est déjà au catalogue. |
+| `GET /bo-api/places/:placeId/existing` | Dit si le lieu est déjà au catalogue (via l'API). |
 
 Toutes exigent une session admin (401 sinon).
 
@@ -130,11 +142,10 @@ d'onboarding d'AdminJS, remplacé par le nôtre.
 
 ## Démarrage
 
-Prérequis : l'API tourne (`npm run start:dev` dans `audioguide-api`) et sa base
-Postgres est accessible.
+Prérequis : l'API tourne (`npm run start:dev` dans `audioguide-api`).
 
 ```bash
-cp .env.sample .env   # puis renseigne DB_*, GOOGLE_PLACES_API_KEY, JWT_ACCESS_SECRET
+cp .env.sample .env   # puis renseigne JWT_ACCESS_SECRET et GOOGLE_PLACES_API_KEY
 npm install --legacy-peer-deps
 npm run dev
 ```
@@ -173,8 +184,8 @@ métadonnées de décorateurs dont TypeORM se sert sinon pour les inférer.
 
 ## Limites connues
 
-- Le plafond quotidien affiché sur le dashboard (100) recopie une constante de
-  l'API. S'il change là-bas, le compteur d'ici devient faux.
+- Le dashboard lit son plafond quotidien depuis `/admin/audioguides/stats`, donc
+  il ne peut plus diverger de celui que l'API applique réellement.
 - La création d'audioguide à la main est désactivée : une fiche sans contenu ni
   média n'a pas de sens, tout passe par la génération.
 - Le backoffice partage `JWT_ACCESS_SECRET` avec l'API. C'est la contrepartie
@@ -183,3 +194,20 @@ métadonnées de décorateurs dont TypeORM se sert sinon pour les inférer.
 - Les cookies portent 7 jours (durée du refresh token de l'API). Une
   rétrogradation de rôle en base prend effet à l'expiration de l'access token
   courant, soit 15 minutes au plus.
+
+## Déploiement
+
+`Dockerfile` + `cloudbuild.yaml` déploient sur Cloud Run, sur le modèle de
+l'API. Un point diffère et il est piégeux : l'image finale doit contenir
+`dist/` **et** `src/components/` **et** `public/`. AdminJS bundle les composants
+React depuis les sources au démarrage ; sans eux le process sort immédiatement
+sur `Trying to bundle file ... but it doesn't exist`, soit un crash-loop.
+
+`npm ci --omit=dev` suffit : les dépendances du bundler (`@babel/preset-typescript`,
+`rollup-plugin-esbuild-minify`) sont des dépendances de production d'AdminJS.
+Démarrage à froid mesuré à ~2 s, bundling compris.
+
+Le service n'a besoin ni de Cloud SQL ni du mot de passe de la base. Variables à
+poser sur le service : `API_BASE_URL`, `JWT_ACCESS_SECRET` (le même que l'API,
+via Secret Manager), `GOOGLE_PLACES_API_KEY`, et éventuellement
+`ALLOWED_ADMIN_EMAILS`.
