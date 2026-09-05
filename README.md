@@ -211,6 +211,13 @@ dépendances de production d'AdminJS. Le bundle navigateur est construit au
 démarrage, mesuré à ~2 s à froid ; `ADMIN_JS_SKIP_BUNDLE=true` permettrait de le
 pré-construire au build si ça devenait gênant.
 
+Ce bundle est écrit dans `.adminjs/`, d'où le `mkdir` + `chown` du Dockerfile :
+le conteneur tourne en `USER node` alors que `/app` appartient à root, et sans
+répertoire inscriptible le process meurt sur `EACCES: mkdir '.adminjs'` avant
+d'écouter. Cloud Run le rapporte comme un conteneur qui n'a pas démarré sur
+`$PORT`, ce qui n'oriente pas vers la vraie cause. L'image de l'API n'a jamais
+rencontré ça : elle n'écrit rien à l'exécution.
+
 Le service n'a besoin ni de Cloud SQL ni du mot de passe de la base.
 
 `cloudbuild.yaml` pose lui-même `API_BASE_URL` et rattache les secrets

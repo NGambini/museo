@@ -20,6 +20,13 @@ RUN npm ci --omit=dev --legacy-peer-deps && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/public ./public
 
+# AdminJS writes the browser bundle to .adminjs/ on startup, and /app belongs to
+# root. Without a writable directory here the process dies on
+# "EACCES: mkdir '.adminjs'" before it ever listens, which Cloud Run reports as
+# a container that failed to start on $PORT. The API image never hit this: it
+# writes nothing at runtime.
+RUN mkdir -p /app/.adminjs && chown node:node /app/.adminjs
+
 USER node
 # Cloud Run injects PORT; config/env.ts already reads it.
 EXPOSE 8080
