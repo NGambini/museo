@@ -53,9 +53,18 @@ describe('buildAudioguidePrompt', () => {
     expect(prompt).not.toContain('fun et éducatif');
   });
 
-  it('mentions the 3 to 5 chapters constraint', () => {
+  it('names a default chapter count rather than only a range', () => {
+    // A bare "between 3 and 10" anchors the model on the floor, and every run
+    // came back with three chapters.
     const prompt = buildAudioguidePrompt('Big Ben', 'fr');
-    expect(prompt).toContain('3');
-    expect(prompt).toContain('5');
+    expect(prompt).toContain('Génère 6 chapitres');
+  });
+
+  it('sizes by distinct subjects, not by museum size', () => {
+    // The previous wording only described museums, so an abbey or a palace
+    // matched no bucket and fell back to the minimum.
+    const prompt = buildAudioguidePrompt('Abbaye Saint-Victor', 'fr');
+    expect(prompt).toContain('un chapitre par sujet distinct');
+    expect(prompt).not.toContain('petit musée');
   });
 });

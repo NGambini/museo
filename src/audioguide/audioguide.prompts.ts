@@ -18,7 +18,7 @@ Réponds UNIQUEMENT avec un objet JSON valide respectant exactement cette struct
   ]
 }
 
-Génère entre 3 et 10 chapitres, en adaptant le nombre à la richesse du lieu : 3 à 4 chapitres pour un petit musée ou un site à thème unique, 5 à 7 pour un musée de taille moyenne, 8 à 10 pour un grand musée aux collections vastes et variées.
+Génère 6 chapitres. Descends à 4 seulement si le lieu est vraiment étroit, monte jusqu'à 10 s'il est vaste. Compte un chapitre par sujet distinct : une salle, une œuvre, une personne, un épisode de l'histoire du lieu, un détail d'architecture. Une abbaye ou un palais en ont facilement six ou huit.
 Pour title : mets dans le titre quelque chose qu'on ne trouve que dans ce lieu — un nom, une date, un objet, un métier. N'écris pas "l'aventure de", "le mystère de" ni "le trésor de" : ces titres-là vont avec n'importe quel lieu.
 Adapte le registre au lieu. L'émerveillement convient à un palais ou à un jardin extraordinaire, pas à un lieu de mémoire, un champ de bataille, une ancienne prison ou un hôpital : ces lieux-là se racontent avec sobriété et respect, même à des enfants.
 Raconte l'origine du lieu quand elle éclaire ce qu'on visite. Pour une église, une abbaye, un château, un pont ou une maison remarquable, le bâtiment est lui-même le sujet : qui l'a bâti, quand et pourquoi fait partie de la visite. Quand le bâtiment n'est qu'un contenant récent construit autour d'une collection, sa construction n'a pas d'intérêt — consacre alors le récit à ce qu'il abrite, à la personne ou au sujet auquel il est consacré.
