@@ -1,6 +1,5 @@
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { AppThemeProvider } from '@/providers/AppThemeProvider';
-import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import '@/global.css';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFonts } from 'expo-font';
@@ -31,6 +30,10 @@ export default function RootLayout() {
     if (error) throw error;
   }, [error]);
 
+  useEffect(() => {
+    if (loaded) SplashScreen.hideAsync();
+  }, [loaded]);
+
   if (!loaded) return null;
 
   return (
@@ -40,23 +43,9 @@ export default function RootLayout() {
     >
       <GluestackUIProvider mode="light">
         <AppThemeProvider>
-          <AuthProvider>
-            <RootNavigator />
-          </AuthProvider>
+          <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />
         </AppThemeProvider>
       </GluestackUIProvider>
     </PersistQueryClientProvider>
   );
-}
-
-function RootNavigator() {
-  const { status } = useAuth();
-
-  useEffect(() => {
-    if (status !== 'loading') SplashScreen.hideAsync();
-  }, [status]);
-
-  if (status === 'loading') return null;
-
-  return <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />;
 }

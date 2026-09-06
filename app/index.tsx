@@ -1,8 +1,6 @@
 import { Redirect } from 'expo-router';
-import { useAuth } from '@/providers/AuthProvider';
 
+// Plus de login : l'app démarre directement sur le HomeScreen.
 export default function Index() {
-  const { status } = useAuth();
-
-  return <Redirect href={status === 'authenticated' ? '/HomeScreen' : '/LoginScreen'} />;
+  return <Redirect href="/HomeScreen" />;
 }
