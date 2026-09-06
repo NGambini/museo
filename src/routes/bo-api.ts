@@ -11,6 +11,7 @@ import {
   type GenerateAudioguideBody,
 } from '../api/client.js';
 import { setAuthCookies } from '../admin/auth.js';
+import type { GenerationJob } from '../types/generation-job.js';
 import { adminApi } from '../api/admin-client.js';
 import { env } from '../config/env.js';
 import '../api/session.js';
@@ -76,7 +77,10 @@ boApiRouter.post('/generate', async (req, res) => {
   }
 
   try {
-    const audioguide = await withSession<ApiAudioguide>(
+    // The API answers 202 with a job rather than the audioguide: the pipeline
+    // outlives an HTTP request. Progress arrives on the websocket, and this job
+    // id is what ties the two together.
+    const job = await withSession<GenerationJob>(
       req,
       res,
       '/audioguides/generate',
@@ -85,7 +89,25 @@ boApiRouter.post('/generate', async (req, res) => {
         body: JSON.stringify({ place_id, lang: lang || 'fr' }),
       },
     );
-    res.json(audioguide);
+    res.status(202).json(job);
+  } catch (error) {
+    fail(res, error);
+  }
+});
+
+/**
+ * Fallback for a client that reconnected and missed events. The websocket is
+ * the normal path; this is what makes a dropped connection recoverable.
+ */
+boApiRouter.get('/jobs/:jobId', async (req, res) => {
+  try {
+    const job = await withSession<GenerationJob>(
+      req,
+      res,
+      `/admin/audioguides/jobs/${encodeURIComponent(req.params.jobId)}`,
+      { method: 'GET' },
+    );
+    res.json(job);
   } catch (error) {
     fail(res, error);
   }

@@ -85,8 +85,26 @@ Les composants React consomment `/bo-api/*`, monté **avant** le routeur AdminJS
 | `POST /bo-api/generate` | Proxy vers `POST /audioguides/generate`. |
 | `GET /bo-api/places/autocomplete?q=` | Proxy Google Places. La clé reste côté serveur. |
 | `GET /bo-api/places/:placeId/existing` | Dit si le lieu est déjà au catalogue (via l'API). |
+| `GET /bo-api/jobs/:jobId` | État d'une génération, en repli du websocket. |
 
 Toutes exigent une session admin (401 sinon).
+
+### Progression des générations
+
+Une génération enchaîne Gemini, la récupération des images et la synthèse vocale
+de chaque chapitre : ça dépasse régulièrement ce qu'une requête HTTP peut tenir.
+`POST /audioguides/generate` répond donc **202** avec un identifiant de job, et
+la progression arrive sur un websocket.
+
+Deux sauts, et c'est délibéré. Le navigateur n'a aucun jeton de l'API — ils
+vivent dans des cookies `httpOnly` précisément pour que les scripts de page ne
+puissent pas les lire — il ne peut donc pas ouvrir le websocket de l'API
+lui-même. Il se connecte ici, sur `/bo-ws`, où le cookie est lisible, et ce
+processus ouvre la connexion amont pour son compte
+([`src/ws/relay.ts`](src/ws/relay.ts)).
+
+Le socket est ouvert au montage de la page et gardé ouvert. `GET /bo-api/jobs/:id`
+sert de repli : une reconnexion qui a manqué l'évènement final retrouve l'état.
 
 ### Types
 

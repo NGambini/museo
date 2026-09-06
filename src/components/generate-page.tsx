@@ -1,4 +1,5 @@
 import React from 'react';
+import { io, type Socket } from 'socket.io-client';
 import {
   Box,
   Button,
@@ -24,12 +25,38 @@ interface Prediction {
   secondary_text: string;
 }
 
-interface GeneratedAudioguide {
+type GenerationStep =
+  | 'queued'
+  | 'place_details'
+  | 'main_photo'
+  | 'writing'
+  | 'images'
+  | 'audio'
+  | 'saving'
+  | 'done'
+  | 'failed';
+
+interface GenerationJob {
   id: string;
-  placeName: string;
-  lang: string;
-  attributes?: { title?: string; chapters?: unknown[] };
+  step: GenerationStep;
+  progress: number;
+  message: string;
+  audioguideId?: string;
+  error?: string;
 }
+
+/** Shown instead of the API's English message, which is meant for logs. */
+const STEP_LABELS: Record<GenerationStep, string> = {
+  queued: 'En attente',
+  place_details: 'Lecture de la fiche du lieu',
+  main_photo: 'Récupération de la photo principale',
+  writing: 'Rédaction du texte',
+  images: 'Recherche des illustrations',
+  audio: 'Enregistrement des chapitres',
+  saving: 'Enregistrement',
+  done: 'Terminé',
+  failed: 'Échec',
+};
 
 const LANGUAGES = [
   { value: 'fr', label: 'Français' },
@@ -63,10 +90,12 @@ const GeneratePage: React.FC = () => {
     placeName?: string;
   } | null>(null);
 
-  const [generating, setGenerating] = React.useState(false);
-  const [elapsed, setElapsed] = React.useState(0);
-  const [result, setResult] = React.useState<GeneratedAudioguide | null>(null);
+  const [job, setJob] = React.useState<GenerationJob | null>(null);
   const [generateError, setGenerateError] = React.useState<string | null>(null);
+  const socketRef = React.useRef<Socket | null>(null);
+
+  const generating =
+    job !== null && job.step !== 'done' && job.step !== 'failed';
 
   // ── Google Places autocomplete, debounced ──────────────────────────────────
   React.useEffect(() => {
@@ -136,23 +165,54 @@ const GeneratePage: React.FC = () => {
     };
   }, [selected, lang]);
 
-  // Waiting counter: generation runs Gemini and then text-to-speech for every
-  // chapter, and the API cuts off at 60 s.
+  /**
+   * The socket is opened once, when the page mounts, and kept for its lifetime.
+   * Progress for a generation that outlives an HTTP request has to be pushed,
+   * and reconnection is socket.io's job rather than ours.
+   */
   React.useEffect(() => {
-    if (!generating) return;
-    const started = Date.now();
-    const interval = window.setInterval(
-      () => setElapsed(Math.round((Date.now() - started) / 1000)),
-      1000,
-    );
-    return () => window.clearInterval(interval);
-  }, [generating]);
+    const socket = io({ path: '/bo-ws', transports: ['websocket'] });
+    socketRef.current = socket;
+
+    socket.on('generation:update', (incoming: GenerationJob) => {
+      // Every admin sees every job; only ours concerns this page.
+      setJob((current) =>
+        current && incoming.id === current.id ? incoming : current,
+      );
+    });
+
+    return () => {
+      socket.close();
+      socketRef.current = null;
+    };
+  }, []);
+
+  /**
+   * Safety net for the gap between the 202 and the socket catching up, and for
+   * a reconnection that missed the final event.
+   */
+  React.useEffect(() => {
+    if (!job || !generating) return;
+
+    const poll = window.setInterval(async () => {
+      try {
+        const response = await fetch(`/bo-api/jobs/${job.id}`, {
+          credentials: 'same-origin',
+        });
+        if (response.ok) setJob((await response.json()) as GenerationJob);
+      } catch {
+        // The socket is the normal path; a failed poll is not worth surfacing.
+      }
+    }, 5000);
+
+    return () => window.clearInterval(poll);
+  }, [job, generating]);
 
   const pick = (prediction: Prediction) => {
     setSelected(prediction);
     setQuery(prediction.description);
     setPredictions([]);
-    setResult(null);
+    setJob(null);
     setGenerateError(null);
   };
 
@@ -160,16 +220,14 @@ const GeneratePage: React.FC = () => {
     setSelected(null);
     setQuery('');
     setPredictions([]);
-    setResult(null);
+    setJob(null);
     setGenerateError(null);
     setExisting(null);
   };
 
   const generate = async () => {
     if (!selected) return;
-    setGenerating(true);
-    setElapsed(0);
-    setResult(null);
+    setJob(null);
     setGenerateError(null);
     try {
       const response = await fetch('/bo-api/generate', {
@@ -178,16 +236,16 @@ const GeneratePage: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ place_id: selected.place_id, lang }),
       });
-      const body = (await response.json()) as GeneratedAudioguide & {
+      const body = (await response.json()) as GenerationJob & {
         message?: string;
       };
+      // 202 means the work was accepted, not finished — except on a cache hit,
+      // where the API hands back a job already marked done.
       if (!response.ok)
         throw new Error(body.message ?? `HTTP ${response.status}`);
-      setResult(body);
+      setJob(body);
     } catch (caught) {
       setGenerateError((caught as Error).message);
-    } finally {
-      setGenerating(false);
     }
   };
 
@@ -321,18 +379,38 @@ const GeneratePage: React.FC = () => {
             {generating ? 'Génération en cours…' : 'Générer'}
           </Button>
 
-          {generating ? (
-            <Box
-              mt="lg"
-              flex
-              flexDirection="row"
-              alignItems="center"
-              style={{ gap: 12 }}
-            >
-              <Loader />
-              <Text color="grey60">
-                {elapsed}s écoulées — texte, images et synthèse vocale de chaque
-                chapitre. L’API coupe à 60 s.
+          {job && generating ? (
+            <Box mt="lg">
+              <Box
+                flex
+                flexDirection="row"
+                alignItems="center"
+                justifyContent="space-between"
+                mb="default"
+              >
+                <Text color="grey80">{STEP_LABELS[job.step]}</Text>
+                <Text color="grey60" fontSize="sm">
+                  {Math.round(job.progress * 100)} %
+                </Text>
+              </Box>
+
+              <Box
+                bg="grey20"
+                borderRadius="default"
+                style={{ height: 8, overflow: 'hidden' }}
+              >
+                <Box
+                  bg="primary100"
+                  style={{
+                    height: '100%',
+                    width: `${Math.max(3, Math.round(job.progress * 100))}%`,
+                    transition: 'width 400ms ease',
+                  }}
+                />
+              </Box>
+
+              <Text mt="default" fontSize="sm" color="grey60">
+                Tu peux quitter cette page, la génération continue côté serveur.
               </Text>
             </Box>
           ) : null}
@@ -343,18 +421,20 @@ const GeneratePage: React.FC = () => {
             </MessageBox>
           ) : null}
 
-          {result ? (
+          {job?.step === 'failed' ? (
+            <MessageBox variant="danger" message="Génération en échec" mt="lg">
+              {job.error ?? 'Raison inconnue.'}
+            </MessageBox>
+          ) : null}
+
+          {job?.step === 'done' && job.audioguideId ? (
             <MessageBox
               variant="success"
               message="Audioguide disponible"
               mt="lg"
             >
-              <Text mb="default">
-                « {result.attributes?.title || result.placeName} » —{' '}
-                {result.attributes?.chapters?.length ?? 0} chapitre(s).
-              </Text>
               <Link
-                href={`${rootPath()}/resources/Audioguide/records/${result.id}/show`}
+                href={`${rootPath()}/resources/Audioguide/records/${job.audioguideId}/show`}
               >
                 Ouvrir la fiche et écouter
               </Link>

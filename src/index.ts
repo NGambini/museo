@@ -13,6 +13,7 @@ import { adminOptions } from './admin/options.js';
 import { publicDir } from './config/paths.js';
 import { env } from './config/env.js';
 import { boApiRouter } from './routes/bo-api.js';
+import { attachGenerationRelay } from './ws/relay.js';
 import './api/session.js';
 
 async function bootstrap(): Promise<void> {
@@ -77,12 +78,16 @@ async function bootstrap(): Promise<void> {
   app.get('/', (_req, res) => res.redirect(admin.options.rootPath));
   app.get('/healthz', (_req, res) => res.json({ status: 'ok' }));
 
-  app.listen(env.port, () => {
+  const server = app.listen(env.port, () => {
     console.log(
       `Backoffice on http://localhost:${env.port}${admin.options.rootPath}`,
     );
     console.log(`Target API: ${env.apiBaseUrl}`);
   });
+
+  // Generation progress is relayed from the API to the browser over this
+  // socket, opened by the page as soon as the backoffice loads.
+  attachGenerationRelay(server);
 }
 
 bootstrap().catch((error) => {
