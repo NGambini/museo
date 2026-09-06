@@ -2,11 +2,12 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   Query,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -28,7 +29,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/user-role.enum';
 import { Audioguide } from './audioguide.entity';
-import { TimeoutInterceptor } from '../common/interceptors/timeout.interceptor';
+import type { GenerationJob } from './jobs/generation-job.types';
 import { trackByUserOrIp } from '../common/guards/track-by-user.util';
 
 // No class-level guard: reading the catalogue is open so the app works without
@@ -39,26 +40,37 @@ export class AudioguideController {
   constructor(private readonly audioguideService: AudioguideService) {}
 
   @Post('generate')
+  @HttpCode(HttpStatus.ACCEPTED)
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard, ThrottlerGuard)
   @Roles(UserRole.ADMIN)
   @Throttle({
     default: { limit: 5, ttl: 3_600_000, getTracker: trackByUserOrIp },
   })
-  @UseInterceptors(new TimeoutInterceptor(60_000))
   @ApiOperation({
-    summary: 'Generate an audioguide from a Google Places ID (admin only)',
+    summary:
+      'Start generating an audioguide from a Google Places ID (admin only)',
+    description:
+      'Returns as soon as the work is accepted. Progress is pushed on the ' +
+      '/generation websocket namespace; GET /admin/jobs/:id gives the same ' +
+      'state over HTTP for clients that missed an event.',
   })
-  @ApiResponse({ status: 201, type: Audioguide })
+  @ApiResponse({
+    status: 202,
+    description:
+      'Generation started, or already finished when the audioguide existed',
+  })
   @ApiResponse({ status: 403, description: 'Requires the admin role' })
   @ApiResponse({ status: 429, description: 'Too many requests' })
-  @ApiResponse({ status: 500, description: 'Generation failed' })
   @ApiResponse({
     status: 503,
     description: 'Daily generation limit reached for the whole service',
   })
-  generate(@Body() dto: GenerateAudioguideDto): Promise<Audioguide> {
-    return this.audioguideService.generate(dto.place_id, dto.lang ?? 'fr');
+  generate(@Body() dto: GenerateAudioguideDto): Promise<GenerationJob> {
+    return this.audioguideService.startGeneration(
+      dto.place_id,
+      dto.lang ?? 'fr',
+    );
   }
 
   @Get()

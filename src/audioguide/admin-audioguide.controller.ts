@@ -25,6 +25,8 @@ import {
   AudioguideStats,
   UpdateAudioguideDto,
 } from './dto/admin-audioguide.dto';
+import { GenerationJobsService } from './jobs/generation-jobs.service';
+import type { GenerationJob } from './jobs/generation-job.types';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -42,7 +44,10 @@ import { UserRole } from '../users/user-role.enum';
 @Roles(UserRole.ADMIN)
 @Controller('admin/audioguides')
 export class AdminAudioguideController {
-  constructor(private readonly audioguideService: AudioguideService) {}
+  constructor(
+    private readonly audioguideService: AudioguideService,
+    private readonly jobs: GenerationJobsService,
+  ) {}
 
   // Declared before ':id' on purpose: Nest matches routes in order, and a
   // ':id' route registered first would swallow '/stats' as an identifier.
@@ -51,6 +56,19 @@ export class AdminAudioguideController {
   @ApiResponse({ status: 200, type: AudioguideStats })
   stats(): Promise<AudioguideStats> {
     return this.audioguideService.stats();
+  }
+
+  @Get('jobs/:jobId')
+  @ApiOperation({
+    summary: 'State of a generation job',
+    description:
+      'Same payload the websocket pushes. Lets a client that reconnected, or ' +
+      'that never opened a socket, recover where a generation stands.',
+  })
+  @ApiParam({ name: 'jobId', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 404, description: 'Unknown job' })
+  job(@Param('jobId') jobId: string): GenerationJob {
+    return this.jobs.find(jobId);
   }
 
   @Get()

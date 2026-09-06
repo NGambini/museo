@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { AudioguideService } from './audioguide.service';
 import { Audioguide } from './audioguide.entity';
+import { GenerationJobsService } from './jobs/generation-jobs.service';
 
 const mockGetSignedUrl = jest
   .fn()
@@ -75,6 +76,7 @@ describe('AudioguideService', () => {
       providers: [
         AudioguideService,
         { provide: getRepositoryToken(Audioguide), useValue: mockRepository },
+        GenerationJobsService,
       ],
     }).compile();
 
@@ -237,14 +239,17 @@ describe('AudioguideService', () => {
   });
 
   describe('generate', () => {
-    it('returns the existing audioguide without calling the AI (cache hit)', async () => {
+    it('finishes the job on the spot without calling the AI (cache hit)', async () => {
       const existing = makeAudioguide();
       // findOne called for the cache check (where: { placeId, lang })
       mockRepository.findOne.mockResolvedValue(existing);
 
-      const result = await service.generate('place-123', 'fr');
+      const job = await service.startGeneration('place-123', 'fr');
 
-      expect(result.placeId).toBe('place-123');
+      // The caller gets a finished job in the 202 body, so a cache hit needs no
+      // websocket round trip.
+      expect(job.step).toBe('done');
+      expect(job.audioguideId).toBe(existing.id);
       // The repository should not have created/saved a new audioguide
       expect(mockRepository.create).not.toHaveBeenCalled();
       expect(mockRepository.save).not.toHaveBeenCalled();
@@ -253,9 +258,20 @@ describe('AudioguideService', () => {
     it('does not count a cache hit against the daily cap', async () => {
       mockRepository.findOne.mockResolvedValue(makeAudioguide());
 
-      await service.generate('place-123', 'fr');
+      await service.startGeneration('place-123', 'fr');
 
       expect(mockRepository.count).not.toHaveBeenCalled();
+    });
+
+    it('rejects the request itself when the cap is reached, not the job', async () => {
+      // The two refusals that can happen up front stay synchronous, so the
+      // caller reads them off the HTTP response instead of waiting on a socket.
+      mockRepository.findOne.mockResolvedValue(null);
+      mockRepository.count.mockResolvedValue(100);
+
+      await expect(service.startGeneration('place-999', 'fr')).rejects.toThrow(
+        ServiceUnavailableException,
+      );
     });
 
     it('throws ServiceUnavailableException once the daily cap is reached', async () => {
@@ -263,7 +279,7 @@ describe('AudioguideService', () => {
       mockRepository.findOne.mockResolvedValue(null);
       mockRepository.count.mockResolvedValue(100);
 
-      await expect(service.generate('place-999', 'fr')).rejects.toThrow(
+      await expect(service.startGeneration('place-999', 'fr')).rejects.toThrow(
         ServiceUnavailableException,
       );
       expect(mockRepository.save).not.toHaveBeenCalled();
@@ -273,7 +289,7 @@ describe('AudioguideService', () => {
       mockRepository.findOne.mockResolvedValue(null);
       mockRepository.count.mockResolvedValue(100);
 
-      await expect(service.generate('place-999', 'fr')).rejects.toThrow(
+      await expect(service.startGeneration('place-999', 'fr')).rejects.toThrow(
         ServiceUnavailableException,
       );
 

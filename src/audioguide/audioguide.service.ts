@@ -12,6 +12,8 @@ import { GoogleGenAI } from '@google/genai';
 import { Audioguide } from './audioguide.entity';
 import { GeminiChapter, GeminiResult, PlaceDetails } from './audioguide.types';
 import { buildAudioguidePrompt } from './audioguide.prompts';
+import { GenerationJobsService } from './jobs/generation-jobs.service';
+import { GenerationJob } from './jobs/generation-job.types';
 import { PaginatedAudioguides } from './dto/audioguide-summary.dto';
 import {
   AdminListAudioguidesQueryDto,
@@ -47,6 +49,7 @@ export class AudioguideService {
   constructor(
     @InjectRepository(Audioguide)
     private readonly audioguideRepository: Repository<Audioguide>,
+    private readonly jobs: GenerationJobsService,
   ) {
     this.storage = new Storage({ projectId: process.env.GOOGLE_PROJECT_ID });
     this.ttsClient = new v1beta1.TextToSpeechClient();
@@ -178,56 +181,110 @@ export class AudioguideService {
     };
   }
 
-  async generate(placeId: string, lang: string): Promise<Audioguide> {
+  /**
+   * Starts a generation and returns immediately.
+   *
+   * The pipeline chains Gemini, image fetching and per-chapter speech
+   * synthesis, which routinely runs past the 60 s an HTTP request can hold —
+   * hence a job the caller follows over the websocket rather than a response it
+   * waits for. The two checks that can refuse the work outright, cache hit and
+   * daily cap, still run synchronously so the caller learns about them from the
+   * HTTP response.
+   */
+  async startGeneration(placeId: string, lang: string): Promise<GenerationJob> {
+    const job = this.jobs.create(placeId, lang);
+
     const existing = await this.audioguideRepository.findOne({
       where: { placeId, lang },
     });
     if (existing) {
       console.log(`Cache hit for place_id ${placeId}`);
-      return this.withSignedUrls(existing);
+      this.jobs.succeed(job.id, existing.id);
+      return this.jobs.find(job.id);
     }
 
     await this.assertDailyQuotaAvailable();
 
+    // Intentionally not awaited: the caller gets its 202 now, and the job
+    // carries the outcome. `runGeneration` never rejects.
+    void this.runGeneration(job.id, placeId, lang);
+
+    return job;
+  }
+
+  private async runGeneration(
+    jobId: string,
+    placeId: string,
+    lang: string,
+  ): Promise<void> {
     console.log(`Generating audioguide for place_id ${placeId}`);
 
-    const bucketName = process.env.GCS_BUCKET_NAME!;
-    const bucket = this.storage.bucket(bucketName);
+    try {
+      const bucket = this.storage.bucket(process.env.GCS_BUCKET_NAME!);
 
-    const placeDetails = await this.fetchPlaceDetailsFromGooglePlaces(
-      placeId,
-      lang,
-      bucket,
-    );
+      // The weights below are rough: fetching a place takes a second, speech
+      // synthesis takes most of the wall clock. They exist to make the bar
+      // move at a plausible pace, not to be accurate.
+      this.jobs.update(
+        jobId,
+        'place_details',
+        0.05,
+        'Reading the place details',
+      );
+      const placeDetails = await this.fetchPlaceDetailsFromGooglePlaces(
+        placeId,
+        lang,
+        bucket,
+      );
 
-    const geminiResult = await this.generateAudioguideWithGemini(
-      placeDetails.placeName,
-      lang,
-    );
+      this.jobs.update(
+        jobId,
+        'writing',
+        0.15,
+        `Writing the audioguide for ${placeDetails.placeName}`,
+      );
+      const geminiResult = await this.generateAudioguideWithGemini(
+        placeDetails.placeName,
+        lang,
+      );
 
-    await this.fetchAndUploadChapterImages(
-      geminiResult.chapters,
-      placeId,
-      lang,
-      bucket,
-      placeDetails.photoReferences,
-    );
+      const chapters = geminiResult.chapters.length;
+      this.jobs.update(
+        jobId,
+        'images',
+        0.4,
+        `Fetching illustrations for ${chapters} chapters`,
+      );
+      await this.fetchAndUploadChapterImages(
+        geminiResult.chapters,
+        placeId,
+        lang,
+        bucket,
+        placeDetails.photoReferences,
+      );
 
-    await this.synthesizeAndUploadAudio(
-      geminiResult.chapters,
-      placeId,
-      lang,
-      bucket,
-    );
+      this.jobs.update(jobId, 'audio', 0.6, `Recording ${chapters} chapters`);
+      await this.synthesizeAndUploadAudio(
+        geminiResult.chapters,
+        placeId,
+        lang,
+        bucket,
+      );
 
-    const saved = await this.persistAudioguideToDatabase(
-      placeId,
-      lang,
-      placeDetails,
-      geminiResult,
-    );
+      this.jobs.update(jobId, 'saving', 0.95, 'Saving');
+      const saved = await this.persistAudioguideToDatabase(
+        placeId,
+        lang,
+        placeDetails,
+        geminiResult,
+      );
 
-    return this.withSignedUrls(saved);
+      this.jobs.succeed(jobId, saved.id);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`Generation failed for place_id ${placeId}: ${message}`);
+      this.jobs.fail(jobId, message);
+    }
   }
 
   // Counts audioguides created since midnight UTC. A failed generation writes no
