@@ -13,7 +13,6 @@ export default function HomeScreen() {
   // Catalogue partagé : chargé dès l'arrivée sur le Home, sans authentification.
   const {
     data: audioguidesPage,
-    isPending: isLoadingAudioguides,
     error: audioguidesError,
     refetch: refetchAudioguides,
   } = useAudioguides({ limit: AUDIOGUIDES_PAGE_SIZE });
@@ -57,7 +56,6 @@ export default function HomeScreen() {
   return (
     <HomeScreenView
       audioguides={audioguidesPage?.items ?? []}
-      isLoadingAudioguides={isLoadingAudioguides}
       audioguidesError={audioguidesError}
       onRetryAudioguides={() => refetchAudioguides()}
       onTapAudioguide={handleTapAudioguide}

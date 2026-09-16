@@ -8,8 +8,7 @@ import { Text } from '@/components/ui/text';
 import { Image } from '@/components/ui/image';
 import { Pressable } from '@/components/ui/pressable';
 import { Divider } from '@/components/ui/divider';
-import { Spinner } from '@/components/ui/spinner';
-import { Clock, ChevronRight, Headphones } from 'lucide-react-native';
+import { Clock, ChevronRight, AlertCircle } from 'lucide-react-native';
 import { theme } from '@/constants/theme';
 import { Header } from '@/components/Header';
 import { AudioguideMap } from '@/components/map';
@@ -25,7 +24,6 @@ export interface HistoryItem {
 
 export interface HomeScreenViewProps {
   audioguides: AudioguideSummary[];
-  isLoadingAudioguides: boolean;
   audioguidesError: Error | null;
   onRetryAudioguides: () => void;
   onTapAudioguide: (audioguideId: string) => void;
@@ -35,7 +33,6 @@ export interface HomeScreenViewProps {
 
 export function HomeScreenView({
   audioguides,
-  isLoadingAudioguides,
   audioguidesError,
   onRetryAudioguides,
   onTapAudioguide,
@@ -52,59 +49,21 @@ export function HomeScreenView({
           {/* Carte Marseille : verrouillée sur les bounds, un marker par audioguide */}
           <AudioguideMap audioguides={audioguides} onTapAudioguide={onTapAudioguide} />
 
-          {/* Catalogue d'audioguides (liste temporaire à la place de la carte) */}
-          <VStack space="md">
-            <HStack className="items-center gap-3">
-              <Headphones size={21} color={theme.primary} />
-              <Text className="text-primary-500" size="md" bold>
-                Audioguides
-              </Text>
-            </HStack>
-
-            {isLoadingAudioguides ? (
-              <Box className="py-8 items-center">
-                <Spinner size="small" />
-              </Box>
-            ) : audioguidesError ? (
-              <Box className="bg-background-50 rounded-2xl p-4">
-                <Text className="text-typography-900" size="sm">
+          {audioguidesError ? (
+            <Box className="bg-background-50 rounded-2xl p-4">
+              <HStack className="items-center gap-3">
+                <AlertCircle size={18} color={theme.secondary} />
+                <Text className="text-typography-900 flex-1" size="sm">
                   Impossible de charger les audioguides.
                 </Text>
-                <Pressable onPress={onRetryAudioguides} className="mt-3">
+                <Pressable onPress={onRetryAudioguides}>
                   <Text className="text-primary-500" size="sm" bold>
                     Réessayer
                   </Text>
                 </Pressable>
-              </Box>
-            ) : audioguides.length === 0 ? (
-              <Box className="bg-background-50 rounded-2xl p-4">
-                <Text className="text-typography-400" size="sm">
-                  Aucun audioguide pour l&apos;instant.
-                </Text>
-              </Box>
-            ) : (
-              <Box className="bg-background-50 rounded-3xl px-6">
-                {audioguides.map((audioguide, index) => (
-                  <Box key={audioguide.id}>
-                    {index > 0 && <Divider orientation="horizontal" />}
-                    <Pressable onPress={() => onTapAudioguide(audioguide.id)}>
-                      <HStack className="items-center justify-between py-4">
-                        <VStack className="flex-1 mr-3">
-                          <Text className="text-typography-900 font-spaced" size="sm" numberOfLines={2}>
-                            {audioguide.placeName}
-                          </Text>
-                          <Text className="text-typography-400 mt-0.5" size="xs">
-                            {[audioguide.city, audioguide.lang?.toUpperCase()].filter(Boolean).join(' · ')}
-                          </Text>
-                        </VStack>
-                        <ChevronRight size={16} color={theme.secondary} />
-                      </HStack>
-                    </Pressable>
-                  </Box>
-                ))}
-              </Box>
-            )}
-          </VStack>
+              </HStack>
+            </Box>
+          ) : null}
 
           {/* History */}
           {historyItems.length > 0 && (
