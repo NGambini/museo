@@ -9,6 +9,8 @@ import {
   buildAudioguideAttributes,
   replaceAttributePathsWithUrls,
   isRetryableGeminiError,
+  isRetryableTtsError,
+  createLimiter,
   retryWithBackoff,
   buildTranscript,
 } from './audioguide.utils';
@@ -344,6 +346,50 @@ describe('replaceAttributePathsWithUrls', () => {
 describe('isRetryableGeminiError', () => {
   it('returns true for a 503 (model overloaded) error', () => {
     expect(isRetryableGeminiError({ status: 503 })).toBe(true);
+  });
+
+  // ── isRetryableTtsError ────────────────────────────────────────────────────────
+
+  describe('isRetryableTtsError', () => {
+    it('returns true for gRPC RESOURCE_EXHAUSTED (8) and UNAVAILABLE (14)', () => {
+      expect(isRetryableTtsError({ code: 8 })).toBe(true);
+      expect(isRetryableTtsError({ code: 14 })).toBe(true);
+    });
+
+    it('returns false for INVALID_ARGUMENT (3) and plain errors', () => {
+      expect(isRetryableTtsError({ code: 3 })).toBe(false);
+      expect(isRetryableTtsError(new Error('boom'))).toBe(false);
+    });
+  });
+
+  // ── createLimiter ──────────────────────────────────────────────────────────────
+
+  describe('createLimiter', () => {
+    it('never runs more than `max` tasks at once and still runs them all', async () => {
+      const limit = createLimiter(2);
+      let active = 0;
+      let peak = 0;
+      const task = async () => {
+        active++;
+        peak = Math.max(peak, active);
+        await new Promise((r) => setTimeout(r, 5));
+        active--;
+        return active;
+      };
+      const results = await Promise.all(
+        Array.from({ length: 6 }, () => limit(task)),
+      );
+      expect(results).toHaveLength(6);
+      expect(peak).toBe(2);
+    });
+
+    it('releases the slot when a task throws', async () => {
+      const limit = createLimiter(1);
+      await expect(
+        limit(() => Promise.reject(new Error('nope'))),
+      ).rejects.toThrow('nope');
+      await expect(limit(() => Promise.resolve('next'))).resolves.toBe('next');
+    });
   });
 
   it('returns true for a 429 (rate limited) error', () => {

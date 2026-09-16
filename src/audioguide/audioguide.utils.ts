@@ -62,6 +62,14 @@ export function isRetryableGeminiError(error: unknown): boolean {
   return status !== undefined && RETRYABLE_STATUS_CODES.has(status);
 }
 
+// TTS errors are gRPC: 8 = RESOURCE_EXHAUSTED (per-minute quota), 14 = UNAVAILABLE.
+const RETRYABLE_GRPC_CODES = new Set([8, 14]);
+
+export function isRetryableTtsError(error: unknown): boolean {
+  const code = (error as { code?: number } | undefined)?.code;
+  return code !== undefined && RETRYABLE_GRPC_CODES.has(code);
+}
+
 export interface RetryOptions {
   retries?: number;
   baseDelayMs?: number;
@@ -92,6 +100,33 @@ export async function retryWithBackoff<T>(
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
+}
+
+// ── Concurrency limiter ───────────────────────────────────────────────────────
+
+/** Returns a wrapper that runs at most `max` of the given tasks at a time, queueing the rest. */
+export function createLimiter(
+  max: number,
+): <T>(task: () => Promise<T>) => Promise<T> {
+  let active = 0;
+  const queue: (() => void)[] = [];
+
+  const next = () => {
+    active--;
+    queue.shift()?.();
+  };
+
+  return async <T>(task: () => Promise<T>): Promise<T> => {
+    if (active >= max) {
+      await new Promise<void>((resolve) => queue.push(resolve));
+    }
+    active++;
+    try {
+      return await task();
+    } finally {
+      next();
+    }
+  };
 }
 
 // ── Places API response parsing ───────────────────────────────────────────────

@@ -33,6 +33,8 @@ import {
   replaceAttributePathsWithUrls,
   retryWithBackoff,
   buildTranscript,
+  createLimiter,
+  isRetryableTtsError,
 } from './audioguide.utils';
 
 // Service-wide cap, all users combined. The controller's throttle bounds what a
@@ -45,11 +47,18 @@ const TTS_VOICE = 'fr-FR-Chirp3-HD-Puck';
 const TTS_SAMPLE_RATE = 24000;
 // Silence inserted between two karaoke lines, since each is synthesized on its own.
 const LINE_GAP_SECONDS = 0.35;
+// One TTS request per line adds up fast against the per-minute quota: cap the
+// in-flight requests (process-wide, all generations together) and back off on
+// RESOURCE_EXHAUSTED long enough for the minute window to roll over.
+const TTS_CONCURRENCY = 4;
+const TTS_RETRIES = 5;
+const TTS_RETRY_BASE_DELAY_MS = 2000;
 
 @Injectable()
 export class AudioguideService {
   private readonly storage: Storage;
   private readonly ttsClient: v1beta1.TextToSpeechClient;
+  private readonly ttsLimit = createLimiter(TTS_CONCURRENCY);
 
   constructor(
     @InjectRepository(Audioguide)
@@ -605,13 +614,28 @@ export class AudioguideService {
   }
 
   private async synthesizeLine(text: string) {
-    const [ttsResponse] = await this.ttsClient.synthesizeSpeech({
-      input: { text },
-      voice: { languageCode: 'fr-FR', name: TTS_VOICE },
-      audioConfig: {
-        audioEncoding:
-          protos.google.cloud.texttospeech.v1beta1.AudioEncoding.LINEAR16,
-        sampleRateHertz: TTS_SAMPLE_RATE,
+    const synthesize = () =>
+      this.ttsLimit(() =>
+        this.ttsClient.synthesizeSpeech({
+          input: { text },
+          voice: { languageCode: 'fr-FR', name: TTS_VOICE },
+          audioConfig: {
+            audioEncoding:
+              protos.google.cloud.texttospeech.v1beta1.AudioEncoding.LINEAR16,
+            sampleRateHertz: TTS_SAMPLE_RATE,
+          },
+        }),
+      );
+
+    const [ttsResponse] = await retryWithBackoff(synthesize, {
+      retries: TTS_RETRIES,
+      baseDelayMs: TTS_RETRY_BASE_DELAY_MS,
+      shouldRetry: isRetryableTtsError,
+      onRetry: (error, attempt, delayMs) => {
+        const code = (error as { code?: number })?.code;
+        console.warn(
+          `TTS throttled (gRPC ${code}), retry ${attempt}/${TTS_RETRIES} in ${Math.round(delayMs)}ms`,
+        );
       },
     });
     return parseWav(Buffer.from(ttsResponse.audioContent as Uint8Array));
