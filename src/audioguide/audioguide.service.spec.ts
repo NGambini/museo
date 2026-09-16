@@ -28,8 +28,7 @@ jest.mock('@google-cloud/text-to-speech', () => ({
       cloud: {
         texttospeech: {
           v1beta1: {
-            AudioEncoding: { MP3: 2 },
-            SynthesizeSpeechRequest: { TimepointType: { SSML_MARK: 1 } },
+            AudioEncoding: { LINEAR16: 1 },
           },
         },
       },

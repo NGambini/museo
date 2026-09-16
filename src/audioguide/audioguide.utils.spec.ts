@@ -10,7 +10,6 @@ import {
   replaceAttributePathsWithUrls,
   isRetryableGeminiError,
   retryWithBackoff,
-  buildChapterSsml,
   buildTranscript,
 } from './audioguide.utils';
 import { GeminiResult, PlaceDetails } from './audioguide.types';
@@ -183,39 +182,20 @@ describe('parseGeminiText', () => {
   });
 });
 
-// ── buildChapterSsml ───────────────────────────────────────────────────────────
-
-describe('buildChapterSsml', () => {
-  it('wraps each line in a mark and joins them inside <speak>', () => {
-    const ssml = buildChapterSsml(['Bonjour.', 'Comment ça va ?']);
-    expect(ssml).toBe(
-      '<speak><mark name="s0"/>Bonjour. <mark name="s1"/>Comment ça va ?</speak>',
-    );
-  });
-
-  it('escapes XML special characters', () => {
-    const ssml = buildChapterSsml(['Tom & Jerry <3']);
-    expect(ssml).toBe('<speak><mark name="s0"/>Tom &amp; Jerry &lt;3</speak>');
-  });
-});
-
 // ── buildTranscript ────────────────────────────────────────────────────────────
 
 describe('buildTranscript', () => {
-  it('pairs each line with its timepoint as [HH:MM:SS] line', () => {
+  it('pairs each line with its start offset as [HH:MM:SS] line', () => {
     const transcript = buildTranscript(
       ['Première ligne.', 'Deuxième ligne.'],
-      [
-        { markName: 's0', timeSeconds: 3 },
-        { markName: 's1', timeSeconds: 67 },
-      ],
+      [3, 67],
     );
     expect(transcript).toBe(
       '[00:00:03] Première ligne.\n[00:01:07] Deuxième ligne.',
     );
   });
 
-  it('defaults to 00:00:00 when a line has no matching timepoint', () => {
+  it('defaults to 00:00:00 when a line has no start offset', () => {
     const transcript = buildTranscript(['Seule ligne.'], []);
     expect(transcript).toBe('[00:00:00] Seule ligne.');
   });

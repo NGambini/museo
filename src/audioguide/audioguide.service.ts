@@ -12,6 +12,7 @@ import { GoogleGenAI } from '@google/genai';
 import { Audioguide } from './audioguide.entity';
 import { GeminiChapter, GeminiResult, PlaceDetails } from './audioguide.types';
 import { buildAudioguidePrompt } from './audioguide.prompts';
+import { encodeMp3, parseWav, stitchLines } from './audio.utils';
 import { GenerationJobsService } from './jobs/generation-jobs.service';
 import { GenerationJob } from './jobs/generation-job.types';
 import { PaginatedAudioguides } from './dto/audioguide-summary.dto';
@@ -31,7 +32,6 @@ import {
   buildAudioguideAttributes,
   replaceAttributePathsWithUrls,
   retryWithBackoff,
-  buildChapterSsml,
   buildTranscript,
 } from './audioguide.utils';
 
@@ -40,6 +40,11 @@ import {
 // matter how many accounts exist. Cache hits do not count against it: they
 // trigger no billable call.
 const MAX_GENERATIONS_PER_DAY = 100;
+
+const TTS_VOICE = 'fr-FR-Chirp3-HD-Puck';
+const TTS_SAMPLE_RATE = 24000;
+// Silence inserted between two karaoke lines, since each is synthesized on its own.
+const LINE_GAP_SECONDS = 0.35;
 
 @Injectable()
 export class AudioguideService {
@@ -571,6 +576,9 @@ export class AudioguideService {
   /**
    * Synthesizes speech for a chapter, uploads the MP3 to GCS,
    * and stores the GCS path (not a full URL) on the chapter object.
+   *
+   * Chirp voices don't support SSML marks, so each karaoke line is synthesized
+   * separately and stitched into one file — line offsets come from the PCM lengths.
    */
   private async synthesizeAndUploadOneChapterAudio(
     chapter: GeminiChapter,
@@ -578,32 +586,35 @@ export class AudioguideService {
     lang: string,
     bucket: Bucket,
   ): Promise<void> {
-    const ssml = buildChapterSsml(chapter.lines);
-
-    const [ttsResponse] = await this.ttsClient.synthesizeSpeech({
-      input: { ssml },
-      voice: { languageCode: 'fr-FR', name: 'fr-FR-Neural2-G' },
-      audioConfig: {
-        audioEncoding:
-          protos.google.cloud.texttospeech.v1beta1.AudioEncoding.MP3,
-      },
-      enableTimePointing: [
-        protos.google.cloud.texttospeech.v1beta1.SynthesizeSpeechRequest
-          .TimepointType.SSML_MARK,
-      ],
-    });
+    const clips = await Promise.all(
+      chapter.lines.map((line) => this.synthesizeLine(line)),
+    );
+    const stitched = stitchLines(clips, LINE_GAP_SECONDS);
+    const audioBuffer = await encodeMp3(stitched);
 
     const path = buildChapterAudioPath(placeId, lang, chapter.chapter_number);
-    const audioBuffer = Buffer.from(ttsResponse.audioContent as Uint8Array);
     await bucket.file(path).save(audioBuffer, { contentType: 'audio/mpeg' });
 
     // Store the GCS path — signed URL is generated at read time
     chapter.audio_url = path;
     chapter.transcript = buildTranscript(
       chapter.lines,
-      ttsResponse.timepoints ?? [],
+      stitched.lineStartSeconds,
     );
     console.log(`Chapter ${chapter.chapter_number} audio uploaded to GCS`);
+  }
+
+  private async synthesizeLine(text: string) {
+    const [ttsResponse] = await this.ttsClient.synthesizeSpeech({
+      input: { text },
+      voice: { languageCode: 'fr-FR', name: TTS_VOICE },
+      audioConfig: {
+        audioEncoding:
+          protos.google.cloud.texttospeech.v1beta1.AudioEncoding.LINEAR16,
+        sampleRateHertz: TTS_SAMPLE_RATE,
+      },
+    });
+    return parseWav(Buffer.from(ttsResponse.audioContent as Uint8Array));
   }
 
   private async persistAudioguideToDatabase(

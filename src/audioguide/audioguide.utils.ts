@@ -159,14 +159,7 @@ export function parsePlacesApiResponse(
   };
 }
 
-// ── SSML transcript synthesis ─────────────────────────────────────────────────
-
-function escapeSsml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
+// ── Transcript ────────────────────────────────────────────────────────────────
 
 function formatTimestamp(totalSeconds: number): string {
   const seconds = Math.max(0, Math.round(totalSeconds));
@@ -174,32 +167,13 @@ function formatTimestamp(totalSeconds: number): string {
   return `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
 }
 
-/** Wraps LLM-segmented lines in SSML, one <mark> per line, so TTS timepointing can report a start time for each. */
-export function buildChapterSsml(lines: string[]): string {
-  const body = lines
-    .map((line, i) => `<mark name="s${i}"/>${escapeSsml(line)}`)
-    .join(' ');
-  return `<speak>${body}</speak>`;
-}
-
-export interface Timepoint {
-  markName?: string | null;
-  timeSeconds?: number | null;
-}
-
-/** Builds a `[HH:MM:SS] line` transcript from the chapter's lines and their TTS timepoints. */
+/** Builds a `[HH:MM:SS] line` transcript from the chapter's lines and the second each one starts at in the audio. */
 export function buildTranscript(
   lines: string[],
-  timepoints: Timepoint[],
+  lineStartSeconds: number[],
 ): string {
-  const timeByMark = new Map(
-    timepoints.map((tp) => [tp.markName, tp.timeSeconds ?? 0]),
-  );
   return lines
-    .map((line, i) => {
-      const seconds = timeByMark.get(`s${i}`) ?? 0;
-      return `[${formatTimestamp(seconds)}] ${line}`;
-    })
+    .map((line, i) => `[${formatTimestamp(lineStartSeconds[i] ?? 0)}] ${line}`)
     .join('\n');
 }
 
