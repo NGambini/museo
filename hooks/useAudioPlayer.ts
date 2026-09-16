@@ -1,4 +1,10 @@
-import { Audio, AVPlaybackSource, AVPlaybackStatus } from 'expo-av';
+import {
+  createAudioPlayer,
+  setAudioModeAsync,
+  type AudioPlayer,
+  type AudioSource,
+  type AudioStatus,
+} from 'expo-audio';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 // ---------------------------------------------------------------------------
@@ -24,32 +30,34 @@ export const audioRegistry = {
 };
 
 // ---------------------------------------------------------------------------
-// useSound — isolated concern: lazy load and unload a single sound file.
+// usePlayer — isolated concern: lazily create and release a single player.
 // ---------------------------------------------------------------------------
-function useSound(source: AVPlaybackSource) {
-  const soundRef = useRef<Audio.Sound | null>(null);
+const STATUS_UPDATE_INTERVAL_MS = 250;
+
+function usePlayer(source: AudioSource) {
+  const playerRef = useRef<AudioPlayer | null>(null);
+  const subscriptionRef = useRef<{ remove(): void } | null>(null);
 
   const ensureLoaded = useCallback(
-    async (onStatus: (s: AVPlaybackStatus) => void): Promise<Audio.Sound> => {
-      if (!soundRef.current) {
-        const { sound } = await Audio.Sound.createAsync(
-          source,
-          { shouldPlay: false },
-          onStatus
-        );
-        soundRef.current = sound;
+    (onStatus: (s: AudioStatus) => void): AudioPlayer => {
+      if (!playerRef.current) {
+        const player = createAudioPlayer(source, { updateInterval: STATUS_UPDATE_INTERVAL_MS });
+        subscriptionRef.current = player.addListener('playbackStatusUpdate', onStatus);
+        playerRef.current = player;
       }
-      return soundRef.current;
+      return playerRef.current;
     },
     [source]
   );
 
-  const unload = useCallback(async () => {
-    await soundRef.current?.unloadAsync();
-    soundRef.current = null;
+  const unload = useCallback(() => {
+    subscriptionRef.current?.remove();
+    subscriptionRef.current = null;
+    playerRef.current?.remove();
+    playerRef.current = null;
   }, []);
 
-  return { soundRef, ensureLoaded, unload };
+  return { playerRef, ensureLoaded, unload };
 }
 
 // ---------------------------------------------------------------------------
@@ -75,23 +83,24 @@ function formatTime(ms: number): string {
 // ---------------------------------------------------------------------------
 // useAudioPlayer
 // ---------------------------------------------------------------------------
-export function useAudioPlayer(source: AVPlaybackSource): AudioPlayerState {
+export function useAudioPlayer(source: AudioSource): AudioPlayerState {
   const [isPlaying, setIsPlaying] = useState(false);
   const [positionMs, setPositionMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
 
-  const { soundRef, ensureLoaded, unload } = useSound(source);
+  const { playerRef, ensureLoaded, unload } = usePlayer(source);
 
-  const pause = useCallback(async () => {
-    await soundRef.current?.pauseAsync();
+  const pause = useCallback(() => {
+    playerRef.current?.pause();
     setIsPlaying(false);
   }, []);
 
   const onStatus = useCallback(
-    (status: AVPlaybackStatus) => {
+    (status: AudioStatus) => {
       if (!status.isLoaded) return;
-      setPositionMs(status.positionMillis);
-      if (status.durationMillis != null) setDurationMs(status.durationMillis);
+      // expo-audio reports times in seconds; the hook exposes milliseconds.
+      setPositionMs(Math.round(status.currentTime * 1000));
+      if (status.duration > 0) setDurationMs(Math.round(status.duration * 1000));
       if (status.didJustFinish) {
         setIsPlaying(false);
         audioRegistry.release(pause);
@@ -101,10 +110,9 @@ export function useAudioPlayer(source: AVPlaybackSource): AudioPlayerState {
   );
 
   const play = useCallback(async () => {
-    await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+    await setAudioModeAsync({ playsInSilentMode: true });
     audioRegistry.claim(pause);
-    const sound = await ensureLoaded(onStatus);
-    await sound.playAsync();
+    ensureLoaded(onStatus).play();
     setIsPlaying(true);
   }, [pause, ensureLoaded, onStatus]);
 
@@ -115,16 +123,16 @@ export function useAudioPlayer(source: AVPlaybackSource): AudioPlayerState {
 
   const seekTo = useCallback(
     async (ratio: number) => {
-      if (!soundRef.current || durationMs === 0) return;
+      if (!playerRef.current || durationMs === 0) return;
       const posMs = Math.floor(ratio * durationMs);
-      await soundRef.current.setPositionAsync(posMs);
+      await playerRef.current.seekTo(posMs / 1000);
       setPositionMs(posMs);
     },
     [durationMs]
   );
 
   useEffect(() => {
-    ensureLoaded(onStatus).catch(() => undefined);
+    ensureLoaded(onStatus);
   }, [ensureLoaded, onStatus]);
 
   // Cleanup on unmount
