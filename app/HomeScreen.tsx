@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { HomeScreenView } from '@/components/screenviews/HomeScreenView';
 import { useAudioguides } from '@/api/audioguides';
 import { getHistory, type HistoryItem as StoredHistoryItem } from '@/lib/historyStore';

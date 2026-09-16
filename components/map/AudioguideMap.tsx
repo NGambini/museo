@@ -71,7 +71,7 @@ export function AudioguideMap({ audioguides, onTapAudioguide }: AudioguideMapPro
         rotateEnabled={false}
         pitchEnabled={false}
         toolbarEnabled={false}
-        showsPointsOfInterest={false}
+        showsPointsOfInterests={false}
       >
         {audioguides.map((audioguide) => (
           <AudioguideMarker key={audioguide.id} audioguide={audioguide} onPress={onTapAudioguide} />
