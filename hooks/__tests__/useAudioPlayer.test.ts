@@ -228,15 +228,20 @@ describe('useAudioPlayer — seekTo', () => {
 });
 
 describe('useAudioPlayer — cleanup', () => {
-  it('unmount removes the player and releases the registry', async () => {
+  it('unmount pauses then removes the player and releases the registry', async () => {
     const { result, unmount } = renderHook(() => useAudioPlayer(SOURCE));
 
     await act(async () => { result.current.toggle(); });
     expect(audioRegistry.stopActive).not.toBeNull();
+    mockPause.mockClear();
 
     await act(async () => { unmount(); });
 
+    // remove() alone does not stop native playback: the sound must be paused
+    // first so switching chapters cuts the previous one immediately.
+    expect(mockPause).toHaveBeenCalledTimes(1);
     expect(mockRemove).toHaveBeenCalledTimes(1);
+    expect(mockPause.mock.invocationCallOrder[0]).toBeLessThan(mockRemove.mock.invocationCallOrder[0]);
     expect(audioRegistry.stopActive).toBeNull();
   });
 });

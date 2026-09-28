@@ -53,6 +53,10 @@ function usePlayer(source: AudioSource) {
   const unload = useCallback(() => {
     subscriptionRef.current?.remove();
     subscriptionRef.current = null;
+    // remove() only drops the native registry reference; playback is actually
+    // stopped when the JS object is garbage-collected. Pause first so the sound
+    // cuts immediately when the player is unmounted (e.g. chapter change).
+    playerRef.current?.pause();
     playerRef.current?.remove();
     playerRef.current = null;
   }, []);
