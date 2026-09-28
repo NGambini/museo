@@ -2,6 +2,13 @@
   "name": "audioguide",
   "private": true,
   "scripts": {
+    "mobile": "nx start mobile",
+    "ios": "nx ios mobile",
+    "android": "nx android mobile",
+    "web": "nx web mobile",
+    "api": "nx start:dev api",
+    "backoffice": "nx dev backoffice",
+    "dev": "nx run-many -t start:dev dev -p api backoffice",
     "install:all": "npm ci --prefix apps/mobile && npm ci --prefix apps/api && npm ci --prefix apps/backoffice --legacy-peer-deps",
     "build": "nx run-many -t build",
     "test": "nx run-many -t test --exclude=mobile",

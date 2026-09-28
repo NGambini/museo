@@ -23,12 +23,13 @@ npm run install:all  # dépendances de chaque app
 ## Commandes
 
 ```bash
-npx nx start mobile         # Expo
-npx nx start:dev api        # API en watch
-npx nx dev backoffice       # backoffice en watch
-npx nx run-many -t build    # build de toutes les apps (avec cache)
-npm test                    # tests (hors mobile, lancé en watch)
-npx nx graph                # graphe des projets
+npm run mobile       # Expo (aussi : npm run ios | android | web)
+npm run api          # API en watch
+npm run backoffice   # backoffice en watch
+npm run dev          # API + backoffice en parallèle
+npm run build        # build de toutes les apps (avec cache)
+npm test             # tests (hors mobile, lancé en watch)
+npm run graph        # graphe des projets
 ```
 
 ## Déploiement
