@@ -12,6 +12,10 @@
       ]
     }
   },
+  "exclude": [
+    "node_modules",
+    "disabled-screens"
+  ],
   "include": [
     "**/*.ts",
     "**/*.tsx",

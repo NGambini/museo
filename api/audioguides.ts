@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/apiClient';
 import { queryClient } from '@/lib/queryClient';
-import type { Audioguide } from '@/types/audioguide';
+import type { Audioguide, AudioguideSummary, PaginatedAudioguides } from '@/types/audioguide';
 
 const KEYS = {
-  all: ['audioguides'] as const,
+  all: (params: AudioguidesListParams) => ['audioguides', params] as const,
   one: (id: string) => ['audioguides', id] as const,
 };
 
@@ -13,10 +13,26 @@ const KEYS = {
 // HomeScreen having to stay mounted or pass anything through navigation params.
 export const GENERATE_AUDIOGUIDE_MUTATION_KEY = ['audioguides', 'generate'] as const;
 
-export function useAudioguides() {
+export type AudioguidesListParams = {
+  page?: number;
+  limit?: number;
+  lang?: string;
+};
+
+function buildQueryString(params: AudioguidesListParams): string {
+  const search = new URLSearchParams();
+  if (params.page != null) search.set('page', String(params.page));
+  if (params.limit != null) search.set('limit', String(params.limit));
+  if (params.lang) search.set('lang', params.lang);
+  const qs = search.toString();
+  return qs ? `?${qs}` : '';
+}
+
+/** GET /audioguides — catalogue partagé, pas d'authentification. */
+export function useAudioguides(params: AudioguidesListParams = {}) {
   return useQuery({
-    queryKey: KEYS.all,
-    queryFn: () => apiFetch<Audioguide[]>('/audioguides'),
+    queryKey: KEYS.all(params),
+    queryFn: () => apiFetch<PaginatedAudioguides>(`/audioguides${buildQueryString(params)}`),
   });
 }
 
@@ -24,6 +40,7 @@ export function useAudioguide(id: string) {
   return useQuery({
     queryKey: KEYS.one(id),
     queryFn: () => apiFetch<Audioguide>(`/audioguides/${id}`),
+    enabled: Boolean(id),
   });
 }
 
@@ -36,11 +53,12 @@ export function useGenerateAudioguide() {
         body: JSON.stringify(input),
       }),
     onSuccess: (newAudioguide) => {
-      // Add straight to the cache instead of refetching
-      queryClient.setQueryData<Audioguide[]>(KEYS.all, (prev = []) => [newAudioguide, ...prev]);
-      // Seed le cache individuel aussi
+      // Seed le cache individuel, et invalide le catalogue (paginé côté API,
+      // donc on ne peut plus l'éditer à la main de façon fiable).
       queryClient.setQueryData(KEYS.one(newAudioguide.id), newAudioguide);
+      queryClient.invalidateQueries({ queryKey: ['audioguides'] });
     },
   });
 }
 
+export type { AudioguideSummary };

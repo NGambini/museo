@@ -18,16 +18,37 @@ export type AudioguideAttributes = {
   chapters: AudioguideChapter[];
 };
 
+/** Ce que renvoie GET /audioguides (catalogue partagé, sans les attributs). */
+export type AudioguideSummary = {
+  id: string;
+  placeId: string;
+  placeName: string;
+  city: string | null;
+  latitude: number;
+  longitude: number;
+  lang: string;
+  createdAt: string;
+};
+
+/** Ce que renvoie GET /audioguides/:id (média inclus). */
 export type Audioguide = {
   id: string;
   createdAt: string;
   updatedAt: string;
   placeId: string;
   placeName: string;
+  city: string | null;
   latitude: number;
   longitude: number;
   lang: string;
-  userId: string;
   attributes: AudioguideAttributes;
 };
 
+export type Paginated<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+export type PaginatedAudioguides = Paginated<AudioguideSummary>;

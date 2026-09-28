@@ -1,7 +1,7 @@
 import { Pause, Play, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { GestureResponderEvent, StyleSheet, TouchableOpacity } from 'react-native';
-import { AVPlaybackSource } from 'expo-av';
+import type { AudioSource } from 'expo-audio';
 import { Motion } from '@legendapp/motion';
 import { Karaoke } from 'react-native-transcript-karaoke';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
@@ -13,7 +13,7 @@ import { VStack } from './ui/vstack';
 import { theme } from '../constants/theme';
 
 export type AudioPlayerProps = {
-  source: AVPlaybackSource;
+  source: AudioSource;
   chapterLabel: string;
   transcript?: string;
   onTranscriptVisibilityChange?: (isOpen: boolean) => void;

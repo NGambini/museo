@@ -3,10 +3,8 @@ import { useRouter } from 'expo-router';
 import { HStack } from '@/components/ui/hstack';
 import { Pressable } from '@/components/ui/pressable';
 import { Menu, MenuItem, MenuItemLabel } from '@/components/ui/menu';
-import { User, ChevronDown, ChevronLeft, Settings, LogOut } from 'lucide-react-native';
+import { User, ChevronDown, ChevronLeft, Settings } from 'lucide-react-native';
 import { theme } from '@/constants/theme';
-import { useLogout } from '@/api/auth';
-import { queryClient } from '@/lib/queryClient';
 import { HeaderTitle } from '@/components/HeaderTitle';
 
 export interface HeaderProps {
@@ -16,16 +14,6 @@ export interface HeaderProps {
 
 export function Header({ title = 'Muséo', isHome = false }: HeaderProps) {
   const router = useRouter();
-  const logoutMutation = useLogout();
-
-  const handleLogout = () => {
-    logoutMutation.mutate(undefined, {
-      onSettled: () => {
-        queryClient.clear();
-        router.replace('/LoginScreen');
-      },
-    });
-  };
 
   return (
     <HStack
@@ -61,10 +49,6 @@ export function Header({ title = 'Muséo', isHome = false }: HeaderProps) {
         <MenuItem key="settings" textValue="Settings" onPress={() => router.push('/SettingsScreen')}>
           <Settings size={16} color={theme.secondary} />
           <MenuItemLabel className="ml-2">Settings</MenuItemLabel>
-        </MenuItem>
-        <MenuItem key="logout" textValue="Déconnecter" onPress={handleLogout}>
-          <LogOut size={16} color={theme.secondary} />
-          <MenuItemLabel className="ml-2">Déconnecter</MenuItemLabel>
         </MenuItem>
       </Menu>
     </HStack>

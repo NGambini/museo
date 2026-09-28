@@ -2,37 +2,30 @@ import { act, renderHook } from '@testing-library/react-native';
 import { audioRegistry, useAudioPlayer } from '../useAudioPlayer';
 
 // ---------------------------------------------------------------------------
-// Mock expo-av
+// Mock expo-audio
 // ---------------------------------------------------------------------------
-const mockPlayAsync = jest.fn().mockResolvedValue(undefined);
-const mockPauseAsync = jest.fn().mockResolvedValue(undefined);
-const mockUnloadAsync = jest.fn().mockResolvedValue(undefined);
-const mockSetPositionAsync = jest.fn().mockResolvedValue(undefined);
+const mockPlay = jest.fn();
+const mockPause = jest.fn();
+const mockRemove = jest.fn();
+const mockSeekTo = jest.fn().mockResolvedValue(undefined);
 const mockSetAudioModeAsync = jest.fn().mockResolvedValue(undefined);
 
 let capturedStatusCallback: ((status: any) => void) | null = null;
 
-const mockCreateAsync = jest.fn().mockImplementation(
-  async (_source: any, _opts: any, onPlaybackStatusUpdate: (s: any) => void) => {
-    capturedStatusCallback = onPlaybackStatusUpdate;
-    return {
-      sound: {
-        playAsync: mockPlayAsync,
-        pauseAsync: mockPauseAsync,
-        unloadAsync: mockUnloadAsync,
-        setPositionAsync: mockSetPositionAsync,
-      },
-    };
-  }
-);
-
-jest.mock('expo-av', () => ({
-  Audio: {
-    setAudioModeAsync: (...args: any[]) => mockSetAudioModeAsync(...args),
-    Sound: {
-      createAsync: (...args: any[]) => mockCreateAsync(...args),
-    },
+const mockCreateAudioPlayer = jest.fn().mockImplementation(() => ({
+  play: mockPlay,
+  pause: mockPause,
+  remove: mockRemove,
+  seekTo: mockSeekTo,
+  addListener: (_event: string, listener: (s: any) => void) => {
+    capturedStatusCallback = listener;
+    return { remove: jest.fn() };
   },
+}));
+
+jest.mock('expo-audio', () => ({
+  createAudioPlayer: (...args: any[]) => mockCreateAudioPlayer(...args),
+  setAudioModeAsync: (...args: any[]) => mockSetAudioModeAsync(...args),
 }));
 
 // ---------------------------------------------------------------------------
@@ -40,11 +33,12 @@ jest.mock('expo-av', () => ({
 // ---------------------------------------------------------------------------
 const SOURCE = 1 as unknown as number;
 
+// expo-audio reports currentTime and duration in seconds.
 function emitStatus(overrides: object) {
   capturedStatusCallback?.({
     isLoaded: true,
-    positionMillis: 0,
-    durationMillis: 60000,
+    currentTime: 0,
+    duration: 60,
     didJustFinish: false,
     ...overrides,
   });
@@ -103,25 +97,25 @@ describe('useAudioPlayer — initial state', () => {
 });
 
 describe('useAudioPlayer — playback', () => {
-  it('toggle loads the sound and calls playAsync', async () => {
+  it('toggle creates the player and calls play', async () => {
     const { result } = renderHook(() => useAudioPlayer(SOURCE));
 
     await act(async () => { result.current.toggle(); });
 
-    expect(mockCreateAsync).toHaveBeenCalledTimes(1);
-    expect(mockPlayAsync).toHaveBeenCalledTimes(1);
+    expect(mockCreateAudioPlayer).toHaveBeenCalledTimes(1);
+    expect(mockPlay).toHaveBeenCalledTimes(1);
     expect(result.current.isPlaying).toBe(true);
   });
 
-  it('does not reload the sound when toggle is called again', async () => {
+  it('does not recreate the player when toggle is called again', async () => {
     const { result } = renderHook(() => useAudioPlayer(SOURCE));
 
     await act(async () => { result.current.toggle(); }); // play
     await act(async () => { result.current.toggle(); }); // pause
     await act(async () => { result.current.toggle(); }); // play again
 
-    expect(mockCreateAsync).toHaveBeenCalledTimes(1);
-    expect(mockPlayAsync).toHaveBeenCalledTimes(2);
+    expect(mockCreateAudioPlayer).toHaveBeenCalledTimes(1);
+    expect(mockPlay).toHaveBeenCalledTimes(2);
   });
 
   it('toggle pauses when already playing', async () => {
@@ -130,7 +124,7 @@ describe('useAudioPlayer — playback', () => {
     await act(async () => { result.current.toggle(); }); // play
     await act(async () => { result.current.toggle(); }); // pause
 
-    expect(mockPauseAsync).toHaveBeenCalledTimes(1);
+    expect(mockPause).toHaveBeenCalledTimes(1);
     expect(result.current.isPlaying).toBe(false);
   });
 });
@@ -142,7 +136,7 @@ describe('useAudioPlayer — status updates', () => {
     await act(async () => { result.current.toggle(); });
 
     act(() => {
-      emitStatus({ positionMillis: 30000, durationMillis: 60000 });
+      emitStatus({ currentTime: 30, duration: 60 });
     });
 
     expect(result.current.progress).toBeCloseTo(0.5);
@@ -156,7 +150,7 @@ describe('useAudioPlayer — status updates', () => {
     await act(async () => { result.current.toggle(); });
 
     act(() => {
-      emitStatus({ positionMillis: 60000, durationMillis: 60000, didJustFinish: true });
+      emitStatus({ currentTime: 60, duration: 60, didJustFinish: true });
     });
 
     expect(result.current.isPlaying).toBe(false);
@@ -184,7 +178,7 @@ describe('useAudioPlayer — singleton (one active player at a time)', () => {
     await act(async () => { player1.current.toggle(); }); // play 1
     await act(async () => { player2.current.toggle(); }); // play 2 → should stop 1
 
-    expect(mockPauseAsync).toHaveBeenCalledTimes(1);
+    expect(mockPause).toHaveBeenCalledTimes(1);
     expect(player1.current.isPlaying).toBe(false);
     expect(player2.current.isPlaying).toBe(true);
   });
@@ -206,27 +200,27 @@ describe('useAudioPlayer — singleton (one active player at a time)', () => {
 });
 
 describe('useAudioPlayer — seekTo', () => {
-  it('seekTo calls setPositionAsync with the correct position in ms', async () => {
+  it('seekTo calls player.seekTo with the position in seconds', async () => {
     const { result } = renderHook(() => useAudioPlayer(SOURCE));
 
     await act(async () => { result.current.toggle(); });
-    act(() => { emitStatus({ positionMillis: 0, durationMillis: 60000 }); });
+    act(() => { emitStatus({ currentTime: 0, duration: 60 }); });
     await act(async () => { result.current.seekTo(0.5); });
 
-    expect(mockSetPositionAsync).toHaveBeenCalledWith(30000);
+    expect(mockSeekTo).toHaveBeenCalledWith(30);
   });
 
-  it('seekTo has no effect if the sound is not yet loaded', async () => {
+  it('seekTo has no effect if the duration is not yet known', async () => {
     const { result } = renderHook(() => useAudioPlayer(SOURCE));
     await act(async () => { result.current.seekTo(0.5); });
-    expect(mockSetPositionAsync).not.toHaveBeenCalled();
+    expect(mockSeekTo).not.toHaveBeenCalled();
   });
 
   it('seekTo updates the local position immediately', async () => {
     const { result } = renderHook(() => useAudioPlayer(SOURCE));
 
     await act(async () => { result.current.toggle(); });
-    act(() => { emitStatus({ positionMillis: 0, durationMillis: 60000 }); });
+    act(() => { emitStatus({ currentTime: 0, duration: 60 }); });
     await act(async () => { result.current.seekTo(0.25); });
 
     expect(result.current.currentTime).toBe('0:15');
@@ -234,15 +228,20 @@ describe('useAudioPlayer — seekTo', () => {
 });
 
 describe('useAudioPlayer — cleanup', () => {
-  it('unmount unloads the sound and releases the registry', async () => {
+  it('unmount pauses then removes the player and releases the registry', async () => {
     const { result, unmount } = renderHook(() => useAudioPlayer(SOURCE));
 
     await act(async () => { result.current.toggle(); });
     expect(audioRegistry.stopActive).not.toBeNull();
+    mockPause.mockClear();
 
     await act(async () => { unmount(); });
 
-    expect(mockUnloadAsync).toHaveBeenCalledTimes(1);
+    // remove() alone does not stop native playback: the sound must be paused
+    // first so switching chapters cuts the previous one immediately.
+    expect(mockPause).toHaveBeenCalledTimes(1);
+    expect(mockRemove).toHaveBeenCalledTimes(1);
+    expect(mockPause.mock.invocationCallOrder[0]).toBeLessThan(mockRemove.mock.invocationCallOrder[0]);
     expect(audioRegistry.stopActive).toBeNull();
   });
 });
