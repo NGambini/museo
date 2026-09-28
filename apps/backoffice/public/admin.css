@@ -1,0 +1,41 @@
+/*
+ * Tweaks to AdminJS components that neither `branding.theme` nor props can
+ * reach. Injected through `assets.styles`.
+ */
+
+/* ── Record action buttons ──────────────────────────────────────────────────
+ * AdminJS renders "Consulter / Modifier / Supprimer" as outlines: transparent
+ * background, text and border in the semantic colour. We fill them in.
+ *
+ * `currentColor` does all the work for the background: it picks up each
+ * button's own colour — orange for edit, red for delete — without restating the
+ * palette here.
+ *
+ * Hence `-webkit-text-fill-color` rather than `color` for the label: the label
+ * is a bare text node, impossible to target with a selector, and redefining
+ * `color` would change `currentColor` along with it, and so the background.
+ * That property paints the text without touching the computed colour. Only the
+ * icon sits in a <span>, so it takes a colour normally.
+ *
+ * The scope is deliberately limited to `.adminjs_ActionHeader`: the same classes
+ * serve the "…" menus of list rows and the "Filtrer" button, which have no
+ * visible border and would turn into solid blocks.
+ */
+.adminjs_ActionHeader .adminjs_ButtonGroupItem,
+.adminjs_ActionHeader .adminjs_ButtonGroupItem:hover,
+.adminjs_ActionHeader .adminjs_ButtonGroupItem:focus,
+.adminjs_ActionHeader .adminjs_ButtonGroupItem:active {
+  background-color: currentColor;
+  border-color: currentColor;
+  -webkit-text-fill-color: #fffdf5;
+}
+
+.adminjs_ActionHeader .adminjs_ButtonGroupItem:hover {
+  filter: brightness(0.92);
+}
+
+.adminjs_ActionHeader .adminjs_ButtonGroupItem .adminjs_Icon,
+.adminjs_ActionHeader .adminjs_ButtonGroupItem svg {
+  color: #fffdf5;
+  stroke: #fffdf5;
+}

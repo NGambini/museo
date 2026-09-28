@@ -1,0 +1,9 @@
+node_modules
+dist
+.adminjs
+.git
+.github
+.env
+.env.*
+!.env.sample
+*.md
