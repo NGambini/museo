@@ -1,0 +1,59 @@
+steps:
+  # 1. Dépendances + tests (échoue = pas de déploiement)
+  - name: node:22-slim
+    entrypoint: npm
+    args: ['ci']
+
+  - name: node:22-slim
+    entrypoint: npm
+    args: ['test']
+
+  # 2. Build de l'image
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
+      - .
+
+  # 3. Push vers Artifact Registry
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
+
+  # 4. Déploiement sur Cloud Run
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      # L'API est jointe par des clients externes et gère elle-même son auth
+      # par JWT ; sans ce flag Cloud Run exigerait en plus une identité IAM.
+      - --allow-unauthenticated
+      # Identité d'exécution : c'est ce compte qui porte les accès GCS et TTS.
+      # Sans ce flag, Cloud Run prendrait le compte Compute Engine par défaut.
+      - --service-account=${_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com
+      # La génération d'un audioguide continue après la réponse HTTP 202. Par
+      # défaut Cloud Run ne donne du CPU que pendant le traitement d'une
+      # requête : l'instance serait gelée dès la réponse envoyée et le travail
+      # s'arrêterait en plein milieu, après avoir payé les appels Gemini.
+      - --no-cpu-throttling
+
+# PROJECT_ID et SHORT_SHA sont fournis par Cloud Build. Ils ne sont développés
+# que dans les args d'une étape, jamais à l'intérieur d'une substitution — d'où
+# le chemin d'image écrit en entier ci-dessus plutôt que dans une variable.
+substitutions:
+  _SERVICE: audioguide-api
+  _REGION: europe-west1
+  _REPO: audioguide
+  _SA_NAME: audioguide-dev
+
+options:
+  # Obligatoire dès qu'on utilise un service account dédié, sinon le build
+  # échoue avec "build.service_account requires logs to be stored".
+  logging: CLOUD_LOGGING_ONLY
