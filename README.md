@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="apps/mobile/assets/images/logo_mondrian.svg" width="140" alt="Logo Muséo" />
+</p>
+
 # Muséo
 
 Des audioguides pour enfants (6-12 ans), générés par IA pour n'importe quel lieu : musée, château, abbaye…
@@ -22,7 +26,7 @@ L'API est la seule à accéder à la base et à Google Cloud. Le backoffice pass
 4. **Text-to-Speech** : chaque ligne est synthétisée séparément, puis les clips sont assemblés en un MP3. La voix utilisée ne donne pas le minutage des mots, alors on calcule le début de chaque ligne à partir de la longueur de l'audio. C'est ce qui permet le karaoké.
 5. Les médias sont stockés sur Cloud Storage et servis par URLs signées.
 
-La génération prend plus d'une minute. L'API répond donc tout de suite (`202`) et envoie la progression par websocket au backoffice. Pour limiter les coûts, seuls les admins peuvent générer, avec un plafond de générations par jour et un cache par lieu.
+La génération prend plus d'une minute. L'API répond donc tout de suite (`202`) et envoie la progression par websocket au backoffice. Pour limiter les coûts, seuls les admins peuvent générer depuis le backoffice.
 
 ## Déploiement
 

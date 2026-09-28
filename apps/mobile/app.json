@@ -13,7 +13,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#825E8C"
       }
     },
     "web": {
@@ -35,6 +35,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
