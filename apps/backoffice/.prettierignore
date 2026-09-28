@@ -1,0 +1,5 @@
+# Généré par openapi-typescript — ne pas reformater, sinon chaque
+# régénération produit du bruit dans le diff.
+src/types/api.ts
+dist/
+.adminjs/

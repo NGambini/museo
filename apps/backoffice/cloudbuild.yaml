@@ -1,0 +1,72 @@
+steps:
+  # 1. Dependencies and formatting gate (a failure stops the deployment).
+  #    There is no test suite here; `npm run build` inside the image build is
+  #    what type-checks the project.
+  - name: node:22-slim
+    dir: apps/backoffice
+    entrypoint: npm
+    args: ['ci', '--legacy-peer-deps']
+
+  - name: node:22-slim
+    dir: apps/backoffice
+    entrypoint: npm
+    args: ['run', 'format:check']
+
+  # 2. Image build
+  - name: gcr.io/cloud-builders/docker
+    dir: apps/backoffice
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
+      - .
+
+  # 3. Push to Artifact Registry
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
+
+  # 4. Deploy to Cloud Run
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      # The backoffice is reached from a browser and gates itself on the admin
+      # role; an IAM check here would break the login flow without IAP.
+      - --allow-unauthenticated
+      - --service-account=${_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com
+      # Cold start measured at ~2 s including the AdminJS component bundling,
+      # so there is no reason to keep an instance warm.
+      - --min-instances=0
+      - --set-env-vars=API_BASE_URL=${_API_BASE_URL}
+      # Values live in Secret Manager; only their names appear here. Declaring
+      # them on every deploy keeps the service reproducible and lets the very
+      # first one start — without them the process exits on a missing
+      # JWT_ACCESS_SECRET and the revision never turns healthy.
+      - --set-secrets=JWT_ACCESS_SECRET=${_JWT_SECRET_NAME}:latest,GOOGLE_PLACES_API_KEY=${_PLACES_SECRET_NAME}:latest
+
+# PROJECT_ID and SHORT_SHA are provided by Cloud Build. They are only expanded
+# inside a step's args, never inside a substitution — hence the full image path
+# written out above rather than held in a variable.
+substitutions:
+  _SERVICE: audioguide-backoffice
+  _REGION: europe-west1
+  _REPO: audioguide
+  _SA_NAME: audioguide-dev
+  _API_BASE_URL: https://audioguide-api-905248379551.europe-west1.run.app
+  # Existing secrets, shared with the API. JWT_ACCESS_SECRET in particular
+  # must stay a single source: two copies could drift, and a drift there makes
+  # the backoffice silently reject every token the API issues.
+  _JWT_SECRET_NAME: JWT_ACCESS_SECRET
+  _PLACES_SECRET_NAME: GOOGLE_PLACES_API_KEY
+
+options:
+  # Required as soon as a dedicated service account is used, otherwise the build
+  # fails with "build.service_account requires logs to be stored".
+  logging: CLOUD_LOGGING_ONLY
