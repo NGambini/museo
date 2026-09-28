@@ -3,15 +3,18 @@ steps:
   #    There is no test suite here; `npm run build` inside the image build is
   #    what type-checks the project.
   - name: node:22-slim
+    dir: apps/backoffice
     entrypoint: npm
     args: ['ci', '--legacy-peer-deps']
 
   - name: node:22-slim
+    dir: apps/backoffice
     entrypoint: npm
     args: ['run', 'format:check']
 
   # 2. Image build
   - name: gcr.io/cloud-builders/docker
+    dir: apps/backoffice
     args:
       - build
       - -t

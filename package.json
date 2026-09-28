@@ -1,0 +1,13 @@
+{
+  "name": "audioguide",
+  "private": true,
+  "scripts": {
+    "install:all": "npm ci --prefix apps/mobile && npm ci --prefix apps/api && npm ci --prefix apps/backoffice --legacy-peer-deps",
+    "build": "nx run-many -t build",
+    "test": "nx run-many -t test --exclude=mobile",
+    "graph": "nx graph"
+  },
+  "devDependencies": {
+    "nx": "^23.2.1"
+  }
+}

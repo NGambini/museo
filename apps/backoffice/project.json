@@ -1,0 +1,6 @@
+{
+  "name": "backoffice",
+  "projectType": "application",
+  "tags": ["type:app", "platform:node"],
+  "implicitDependencies": ["api"]
+}

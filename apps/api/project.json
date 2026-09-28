@@ -1,0 +1,5 @@
+{
+  "name": "api",
+  "projectType": "application",
+  "tags": ["type:app", "platform:node"]
+}

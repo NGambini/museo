@@ -1,15 +1,18 @@
 steps:
   # 1. Dépendances + tests (échoue = pas de déploiement)
   - name: node:22-slim
+    dir: apps/api
     entrypoint: npm
     args: ['ci']
 
   - name: node:22-slim
+    dir: apps/api
     entrypoint: npm
     args: ['test']
 
   # 2. Build de l'image
   - name: gcr.io/cloud-builders/docker
+    dir: apps/api
     args:
       - build
       - -t
